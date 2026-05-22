@@ -17,11 +17,3 @@ captures
 !*.xcworkspace/contents.xcworkspacedata
 **/xcshareddata/WorkspaceSettings.xcsettings
 node_modules/
-
-# 项目排除路径
-/androidApp/
-/desktopApp/
-/gradle/
-/iosApp/
-/shared/
-/webApp/
