@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
+import com.ghhccghk.multiplatform.kugouapi.shared.KuGouClient
 import org.jetbrains.compose.resources.painterResource
 
 import kogouapikotlinmultiplatformsdk.shared.generated.resources.Res
@@ -35,18 +36,24 @@ fun App() {
                 Text("点击我！")
             }
             AnimatedVisibility(showContent) {
+                var searchResult by remember { mutableStateOf("搜索中...") }
                 LaunchedEffect(Unit) {
-                    val api = KuGouApi()
-                    val result = api.search.search("周杰伦")
-                    println(result)
+                    try {
+                        val client = KuGouClient()
+                        val response = client.search.search("周杰伦")
+                        searchResult = response.body.toString()
+                        print("搜索结果: ${response.body}")
+                    } catch (e: Exception) {
+                        searchResult = "错误: ${e.message}"
+                        print("搜索结果: ${e.message}")
+                    }
                 }
-                val greeting = remember { Greeting().greet() }
                 Column(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Image(painterResource(Res.drawable.compose_multiplatform), null)
-                    Text("result: $greeting")
+                    Text("搜索结果: $searchResult")
                 }
             }
         }
