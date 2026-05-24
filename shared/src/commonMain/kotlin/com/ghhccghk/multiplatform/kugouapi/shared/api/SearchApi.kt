@@ -28,16 +28,17 @@ class SearchApi(private val executor: RequestExecutor) {
                 url = "/$version/search/${type.value}",
                 method = HttpMethod.GET,
                 params = mapOf(
+                    "albumhide" to 0,
+                    "iscorrection" to 1,
                     "keyword" to keywords,
+                    "nocollect" to 0,
                     "page" to page,
                     "pagesize" to pageSize,
                     "platform" to "AndroidFilter",
-                    "albumhide" to 0,
-                    "iscorrection" to 1,
-                    "nocollect" to 0,
                 ),
                 headers = mapOf(
                     "x-router" to "complexsearch.kugou.com",
+                    "kg-tid" to "1"
                 ),
             )
         )

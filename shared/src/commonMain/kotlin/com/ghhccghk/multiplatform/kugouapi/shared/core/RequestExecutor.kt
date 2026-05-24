@@ -1,6 +1,7 @@
 package com.ghhccghk.multiplatform.kugouapi.shared.core
 
 import com.ghhccghk.multiplatform.kugouapi.shared.KuGouConfig
+import com.ghhccghk.multiplatform.kugouapi.shared.model.EncryptType
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -11,27 +12,36 @@ import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.*
 
 class RequestExecutor internal constructor(
-    private val config: KuGouConfig,
+    internal val config: KuGouConfig,
     internal val cookieJar: CookieJar,
 ) {
+
     private val signer = RequestSigner(config)
+
+    companion object {
+        private val json = Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+            coerceInputValues = true
+        }
+    }
+
     private val client = HttpClient {
         install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                isLenient = true
-                coerceInputValues = true
-            })
+            json(json)
         }
         install(HttpTimeout) {
             requestTimeoutMillis = config.timeoutMs
             connectTimeoutMillis = config.timeoutMs
         }
+        expectSuccess = false
     }
 
     init {
         PlatformIdentity.initializeCookies(cookieJar, config)
     }
+
+    private fun normalize(value: Any?): String = RequestSigner.normalize(value)
 
     suspend fun execute(request: KuGouRequest): KuGouResponse {
         val baseUrl = request.baseUrl ?: config.defaultBaseUrl
@@ -41,142 +51,106 @@ class RequestExecutor internal constructor(
         val userid = cookieJar.getUserid()
         val clienttime = currentTimeMillis() / 1000
 
-        // Build default params
-        val defaultParams = mutableMapOf<String, Any?>(
-            "dfid" to dfid,
-            "mid" to mid,
-            "uuid" to "-",
-            "appid" to config.activeAppId,
-            "clientver" to config.activeClientVersion,
-            "clienttime" to clienttime,
-        )
-        if (token.isNotEmpty()) defaultParams["token"] = token
-        if (userid != "0") defaultParams["userid"] = userid
-
-        // Merge params
-        val params = if (request.clearDefaultParams) {
-            request.params.toMutableMap()
-        } else {
-            (defaultParams + request.params).toMutableMap()
+        // 1. 构建 params
+        val params = linkedMapOf<String, Any?>()
+        if (!request.clearDefaultParams) {
+            params["dfid"] = dfid
+            params["mid"] = mid
+            params["uuid"] = mid
+            params["appid"] = config.activeAppId
+            params["clientver"] = config.activeClientVersion
+            params["clienttime"] = clienttime
+            params["srcappid"] = 2919
+            if (token.isNotEmpty()) params["token"] = token else params["token"] = ""
+            if (userid != "0") params["userid"] = userid else params["userid"] = "0"
         }
+        params.putAll(request.params)
 
-        // Add key if encryptKey
-        if (request.encryptKey && params.containsKey("hash")) {
-            params["key"] = signer.signKey(
-                hash = params["hash"].toString(),
-                mid = mid,
-                userid = userid,
-                appid = config.activeAppId
-            )
-        }
-
-        // Compute signature
+        // 2. 签名计算
         if (!params.containsKey("signature") && !request.notSignature) {
-            val dataStr = if (request.data != null) {
-                if (request.data is String) request.data
-                else Json.encodeToString(JsonElement.serializer(), serializeToElement(request.data))
-            } else ""
+            val dataStr = when (val data = request.data) {
+                null -> ""
+                is String -> data
+                else -> json.encodeToString(JsonElement.serializer(), serializeToElement(data))
+            }
             params["signature"] = signer.computeSignature(request.encryptType, params, dataStr)
         }
 
-        // Build headers
-        val headers = mutableMapOf(
+        // 3. 构建 Headers
+        val headers = linkedMapOf(
             "User-Agent" to config.userAgent,
             "dfid" to dfid,
-            "clienttime" to params["clienttime"].toString(),
+            "clienttime" to clienttime.toString(),
             "mid" to mid,
             "kg-rc" to "1",
             "kg-thash" to "5d816a0",
             "kg-rec" to "1",
             "kg-rf" to "B9EDA08A64250DEFFBCADDEE00F8F25F",
+            "X-Real-IP" to "192.168.4.22",
+            "X-Forwarded-For" to "192.168.4.22"
         )
         headers.putAll(request.headers)
-
-        // Debug logging
-        println("=== KuGou Debug ===")
-        println("URL: $baseUrl${request.url}")
-        println("Params: $params")
-        println("Headers: $headers")
-        println("Mid: $mid")
-        println("Dfid: $dfid")
-        println("===================")
+        println("=== Request Headers ===\n")
+        println(headers.toString())
+        // 在 execute() 里，发请求之前加
+        println("[Request URL] ${baseUrl + request.url}?${params.entries.sortedBy { it.key }.joinToString("&") { "${it.key}=${it.value}" }}")
 
         return try {
-            val url = "$baseUrl${request.url}"
-            val fullUrl = buildString {
-                append(url)
-                append("?")
-                params.forEach { (key, value) ->
-                    if (value != null) {
-                        append("$key=$value&")
-                    }
-                }
-            }.removeSuffix("&")
-            println("Full URL: $fullUrl")
-
-            val response = if (request.method == HttpMethod.GET) {
-                client.get(baseUrl + request.url) {
-                    url {
-                        params.forEach { (key, value) ->
-                            if (value != null) parameter(key, value.toString())
+            val sortedKeys = params.keys.sorted()
+            
+            val response = when (request.method) {
+                HttpMethod.GET -> {
+                    client.get(baseUrl + request.url) {
+                        url {
+                            for (key in sortedKeys) {
+                                val value = params[key]
+                                if (value != null) parameter(key, normalize(value))
+                            }
                         }
+                        headers.forEach { (k, v) -> header(k, v) }
                     }
-                    headers.forEach { (key, value) -> header(key, value) }
                 }
-            } else {
-                client.post("$baseUrl${request.url}") {
-                    contentType(ContentType.Application.Json)
-                    headers.forEach { (key, value) -> header(key, value) }
-                    if (request.data != null) {
-                        setBody(request.data)
-                    }
-                    url {
-                        params.forEach { (key, value) ->
-                            if (value != null) parameter(key, value.toString())
+                else -> {
+                    client.post(baseUrl + request.url) {
+                        contentType(ContentType.Application.Json)
+                        headers.forEach { (k, v) -> header(k, v) }
+                        request.data?.let { setBody(it) }
+                        url {
+                            for (key in sortedKeys) {
+                                val value = params[key]
+                                if (value != null) parameter(key, normalize(value))
+                            }
                         }
                     }
                 }
             }
 
-            // 酷狗API返回的Content-Type是text/plain，手动读取字符串再解析JSON
+            // 解析响应
+            if (request.responseType == ResponseType.BYTES) {
+                val bytes = response.readRawBytes()
+                return KuGouResponse(
+                    status = response.status.value,
+                    body = buildJsonObject { 
+                        put("bytes", bytes.joinToString(",") { it.toString() })
+                    },
+                    cookies = extractCookies(response),
+                    headers = response.headers.entries().associate { it.key to it.value.joinToString("; ") }
+                )
+            }
+
             val responseText = response.bodyAsText()
             val responseBody = try {
-                Json.parseToJsonElement(responseText) as? JsonObject ?: buildJsonObject {
-                    put("raw", responseText)
-                }
-            } catch (e: Exception) {
-                buildJsonObject {
-                    put("raw", responseText)
-                }
-            }
-            val responseCookies = response.headers.getAll("Set-Cookie") ?: emptyList()
-            val parsedCookies = mutableMapOf<String, String>()
-            responseCookies.forEach { cookie ->
-                val parts = cookie.split(";")[0].split("=", limit = 2)
-                if (parts.size == 2) {
-                    parsedCookies[parts[0].trim()] = parts[1].trim()
-                }
-            }
-
-            // Update cookie jar
-            cookieJar.updateFromResponse(responseCookies)
-
-            val responseHeaders = mutableMapOf<String, String>()
-            response.headers.forEach { name, values ->
-                responseHeaders[name] = values.joinToString("; ")
-            }
-
-            val status = if (responseBody["status"]?.jsonPrimitive?.intOrNull == 0) {
-                502
-            } else {
-                200
+                json.parseToJsonElement(responseText) as? JsonObject
+                    ?: buildJsonObject { put("raw", responseText) }
+            } catch (_: Exception) {
+                buildJsonObject { put("raw", responseText) }
             }
 
             KuGouResponse(
-                status = status,
+                status = response.status.value,
                 body = responseBody,
-                cookies = parsedCookies,
-                headers = responseHeaders,
+                cookies = extractCookies(response),
+                headers = response.headers.entries().associate { it.key to it.value.joinToString("; ") }
             )
         } catch (e: Exception) {
             KuGouResponse(
@@ -186,28 +160,35 @@ class RequestExecutor internal constructor(
                     put("msg", e.message ?: "Unknown error")
                 },
                 cookies = emptyMap(),
-                headers = emptyMap(),
+                headers = emptyMap()
             )
         }
     }
 
-    private fun serializeToElement(value: Any?): JsonElement {
-        return when (value) {
-            null -> JsonNull
-            is JsonElement -> value
-            is String -> JsonPrimitive(value)
-            is Number -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is Map<*, *> -> buildJsonObject {
-                value.forEach { (k, v) ->
-                    put(k.toString(), serializeToElement(v))
-                }
-            }
-            is List<*> -> buildJsonArray {
-                value.forEach { add(serializeToElement(it)) }
-            }
-            else -> JsonPrimitive(value.toString())
+    private fun extractCookies(response: HttpResponse): Map<String, String> {
+        val responseCookies = response.headers.getAll("Set-Cookie") ?: emptyList()
+        cookieJar.updateFromResponse(responseCookies)
+        val parsedCookies = mutableMapOf<String, String>()
+        responseCookies.forEach { cookie ->
+            val parts = cookie.split(";")[0].split("=", limit = 2)
+            if (parts.size == 2) parsedCookies[parts[0].trim()] = parts[1].trim()
         }
+        return parsedCookies
+    }
+
+    private fun serializeToElement(value: Any?): JsonElement = when (value) {
+        null -> JsonNull
+        is JsonElement -> value
+        is String -> JsonPrimitive(value)
+        is Number -> JsonPrimitive(value)
+        is Boolean -> JsonPrimitive(value)
+        is Map<*, *> -> buildJsonObject {
+            value.forEach { (k, v) -> put(k.toString(), serializeToElement(v)) }
+        }
+        is Iterable<*> -> buildJsonArray {
+            value.forEach { add(serializeToElement(it)) }
+        }
+        else -> JsonPrimitive(value.toString())
     }
 
     fun close() {

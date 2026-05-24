@@ -15,6 +15,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.ghhccghk.multiplatform.kugouapi.shared.KuGouClient
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.jetbrains.compose.resources.painterResource
 
 import kogouapikotlinmultiplatformsdk.shared.generated.resources.Res
@@ -36,10 +38,18 @@ fun App() {
                 Text("点击我！")
             }
             AnimatedVisibility(showContent) {
-                var searchResult by remember { mutableStateOf("搜索中...") }
+                var searchResult by remember { mutableStateOf("初始化中...") }
                 LaunchedEffect(Unit) {
                     try {
                         val client = KuGouClient()
+                        // 1. 先注册设备获取 dfid
+                        val regResponse = client.auth.registerDev()
+                        val data = regResponse.body["data"]?.jsonObject
+                        print("注册设备响应: ${regResponse.body}")
+                        val dfid = data?.get("dfid")?.jsonPrimitive?.content ?: "-"
+                        client.cookieJar["dfid"] = dfid
+                        
+                        // 2. 再进行搜索
                         val response = client.search.search("周杰伦")
                         searchResult = response.body.toString()
                         print("搜索结果: ${response.body}")

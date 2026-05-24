@@ -4,6 +4,12 @@ import com.ghhccghk.multiplatform.kugouapi.shared.KuGouConfig
 
 internal object PlatformIdentity {
 
+    fun generateRandomString(len: Int = 16, chars: String = "1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ"): String {
+        return buildString(len) {
+            repeat(len) { append(chars.random()) }
+        }
+    }
+
     fun generateGuid(): String {
         fun segment(len: Int): String {
             val chars = "0123456789abcdef"
@@ -14,22 +20,18 @@ internal object PlatformIdentity {
         return "${segment(8)}-${segment(4)}-${segment(4)}-${segment(4)}-${segment(12)}"
     }
 
-    fun generateDev(length: Int = 10): String {
-        val chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-        return buildString(length) {
-            repeat(length) { append(chars.random()) }
-        }
-    }
-
     /**
      * 将 MD5 hex 转换为十进制大整数字符串
-     * 与 Node.js 版本的 big-integer 实现等价
+     * 对齐 Node.js 版本的 BigInt(MD5(str))
      */
     fun calculateMid(guid: String): String {
         val md5Hex = Crypto.md5(guid)
+        return hexToBigIntString(md5Hex)
+    }
+
+    private fun hexToBigIntString(hex: String): String {
         var result = "0"
-        for (ch in md5Hex) {
-            // result = result * 16 + digit
+        for (ch in hex) {
             result = decimalMultiplyBySmall(result, 16)
             val digit = ch.toString().toInt(16)
             result = decimalAddSmall(result, digit)
@@ -37,7 +39,6 @@ internal object PlatformIdentity {
         return result
     }
 
-    /** 十进制字符串 × 小整数 */
     private fun decimalMultiplyBySmall(num: String, multiplier: Int): String {
         if (num == "0") return "0"
         val sb = StringBuilder()
@@ -54,7 +55,6 @@ internal object PlatformIdentity {
         return sb.reverse().toString()
     }
 
-    /** 十进制字符串 + 小整数 */
     private fun decimalAddSmall(num: String, addend: Int): String {
         val sb = StringBuilder()
         var carry = addend
@@ -71,18 +71,20 @@ internal object PlatformIdentity {
     }
 
     fun initializeCookies(cookieJar: CookieJar, config: KuGouConfig) {
-        // 强制重新生成，确保使用新的 calculateMid
-        val guid = Crypto.md5(generateGuid())
-        cookieJar["KUGOU_API_GUID"] = guid
-        cookieJar["KUGOU_API_MID"] = calculateMid(guid)
-        cookieJar["KUGOU_API_DEV"] = generateDev().uppercase()
-        cookieJar["KUGOU_API_MAC"] = "02:00:00:00:00:00"
-        cookieJar["dfid"] = "-"
-
-        println("=== PlatformIdentity Init ===")
-        println("GUID: ${cookieJar.getGuid()}")
-        println("MID: ${cookieJar.getMid()}")
-        println("DEV: ${cookieJar.getDev()}")
-        println("=============================")
+        if (cookieJar.getGuid().isEmpty()) {
+            val rawGuid = generateGuid()
+            val hashedGuid = Crypto.md5(rawGuid)
+            cookieJar["KUGOU_API_GUID"] = hashedGuid
+            cookieJar["KUGOU_API_MID"] = calculateMid(hashedGuid)
+        }
+        if (cookieJar.getDev().isEmpty()) {
+            cookieJar["KUGOU_API_DEV"] = generateRandomString(10).uppercase()
+        }
+        if (cookieJar["KUGOU_API_MAC"].isNullOrEmpty()) {
+            cookieJar["KUGOU_API_MAC"] = "02:00:00:00:00:00"
+        }
+        if (cookieJar.getDfid() == "-") {
+            cookieJar["dfid"] = "-"
+        }
     }
 }
