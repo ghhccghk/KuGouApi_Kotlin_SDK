@@ -1,13 +1,7 @@
 package com.ghhccghk.multiplatform.kugouapi
 
-import com.ghhccghk.multiplatform.kugouapi.api.AlbumApi
-import com.ghhccghk.multiplatform.kugouapi.api.ArtistApi
-import com.ghhccghk.multiplatform.kugouapi.api.AuthApi
-import com.ghhccghk.multiplatform.kugouapi.api.PlaylistApi
-import com.ghhccghk.multiplatform.kugouapi.api.SearchApi
-import com.ghhccghk.multiplatform.kugouapi.api.SongApi
-import com.ghhccghk.multiplatform.kugouapi.core.CookieJar
-import com.ghhccghk.multiplatform.kugouapi.core.RequestExecutor
+import com.ghhccghk.multiplatform.kugouapi.api.*
+import com.ghhccghk.multiplatform.kugouapi.core.*
 
 /**
  * KuGou Music API Kotlin Multiplatform SDK
@@ -22,7 +16,6 @@ import com.ghhccghk.multiplatform.kugouapi.core.RequestExecutor
 class KuGouClient(
     val config: KuGouConfig = KuGouConfig(),
     val cookieJar : CookieJar = CookieJar(config)
-
 ) {
 
     private val executor =
@@ -34,4 +27,14 @@ class KuGouClient(
     val artist = ArtistApi(executor)
     val playlist = PlaylistApi(executor)
     val song = SongApi(executor)
+    val comment = CommentApi(executor)
+    val image = ImageApi(executor)
+    val longAudio = LongAudioApi(executor)
+    val rank = RankApi(executor)
+    val sceneMusic = SceneMusicApi(executor)
+    val misc = MiscApi(executor)
+    val user = UserApi(executor)
+    val video = VideoApi(executor)
+    val radio = RadioApi(executor)
+    val recommend = RecommendApi(executor)
 }

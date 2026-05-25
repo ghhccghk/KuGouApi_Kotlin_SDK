@@ -147,4 +147,48 @@ class SearchApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 混合综合搜索
+     * 对齐 module/search_mixed.js
+     */
+    suspend fun searchMixed(keyword: String): KuGouResponse {
+        val time = currentTimeMillis()
+        val requestId = "${Crypto.md5("bdaa53d04e7475feb9024164a47032f9$time")}_0"
+        
+        return executor.execute(
+            KuGouRequest(
+                url = "/v3/search/mixed",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "ab_tag" to 0,
+                    "ability" to 511,
+                    "albumhide" to 0,
+                    "apiver" to 22,
+                    "area_code" to 1,
+                    "clientver" to 20125,
+                    "cursor" to 0,
+                    "is_gpay" to 0,
+                    "iscorrection" to 1,
+                    "keyword" to keyword,
+                    "nocollect" to 0,
+                    "osversion" to 16.5,
+                    "platform" to "IOSFilter",
+                    "recver" to 2,
+                    "req_ai" to 1,
+                    "requestid" to requestId,
+                    "search_ability" to 3,
+                    "sec_aggre" to 1,
+                    "sec_aggre_bitmap" to 0,
+                    "style_type" to 3,
+                    "tag" to "em"
+                ),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf(
+                    "x-router" to "complexsearch.kugou.com",
+                    "kg-clienttimems" to time.toString()
+                )
+            )
+        )
+    }
 }

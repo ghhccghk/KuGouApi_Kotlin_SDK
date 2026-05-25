@@ -4,8 +4,8 @@ import android.util.Base64
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.MessageDigest
-import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
+import java.util.zip.Inflater
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -13,6 +13,12 @@ import javax.crypto.spec.SecretKeySpec
 actual object Crypto {
     actual fun md5(data: String): String {
         val digest = MessageDigest.getInstance("MD5")
+        val bytes = digest.digest(data.toByteArray(Charsets.UTF_8))
+        return bytes.joinToString("") { "%02x".format(it) }
+    }
+
+    actual fun sha1(data: String): String {
+        val digest = MessageDigest.getInstance("SHA-1")
         val bytes = digest.digest(data.toByteArray(Charsets.UTF_8))
         return bytes.joinToString("") { "%02x".format(it) }
     }
@@ -53,7 +59,6 @@ actual object Crypto {
 
     actual fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
         val keySpec = getRsaPublicKeySpec(publicKeyPem)
-        // Raw RSA: m^e mod n (no padding)
         val message = BigInteger(1, data)
         val encrypted = message.modPow(keySpec.publicExponent, keySpec.modulus)
         val keyLength = (keySpec.modulus.bitLength() + 7) / 8
@@ -83,11 +88,28 @@ actual object Crypto {
         return Base64.encodeToString(data, Base64.NO_WRAP)
     }
 
-    private fun getRsaPublicKeySpec(publicKeyPem: String): RSAPublicKey {
+    actual fun decodeBase64(data: String): ByteArray {
+        return Base64.decode(data, Base64.DEFAULT)
+    }
+
+    actual fun inflate(data: ByteArray): ByteArray {
+        val decompressor = Inflater()
+        decompressor.setInput(data)
+        val bos = java.io.ByteArrayOutputStream(data.size)
+        val buf = ByteArray(1024)
+        while (!decompressor.finished()) {
+            val count = decompressor.inflate(buf)
+            bos.write(buf, 0, count)
+        }
+        bos.close()
+        return bos.toByteArray()
+    }
+
+    private fun getRsaPublicKeySpec(publicKeyPem: String): java.security.interfaces.RSAPublicKey {
         val pemContent = extractPemContent(publicKeyPem)
         val keyBytes = Base64.decode(pemContent, Base64.DEFAULT)
         val keyFactory = KeyFactory.getInstance("RSA")
-        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as RSAPublicKey
+        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as java.security.interfaces.RSAPublicKey
     }
 
     private fun extractPemContent(pem: String): String {
@@ -107,19 +129,5 @@ actual object Crypto {
             i += 2
         }
         return data
-    }
-
-    actual fun rsaEncryptRaw(data: ByteArray, publicKeyPem: String): String {
-        val publicKey = getRsaPublicKeySpec(publicKeyPem)
-        val keyLength = (publicKey.modulus.bitLength() + 7) / 8  // 1024-bit → 128 bytes
-
-        // JS: padded.set(buffer) → 数据在头部，尾部补零
-        val padded = if (data.size < keyLength) {
-            ByteArray(keyLength).also { data.copyInto(it, destinationOffset = 0) }
-        } else data
-
-        val message = BigInteger(1, padded)
-        val encrypted = message.modPow(publicKey.publicExponent, publicKey.modulus)
-        return encrypted.toString(16).padStart(keyLength * 2, '0')  // 小写 hex，256 chars
     }
 }

@@ -474,16 +474,6 @@ class AuthApi(private val executor: RequestExecutor) {
 
     /**
      * 轮询检查二维码扫码状态。
-     *
-     * 状态码：
-     * - 0: 二维码已过期
-     * - 1: 等待扫码
-     * - 2: 已扫码，等待确认
-     * - 4: 授权登录成功（此时响应中会包含 token 和 userid）
-     *
-     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
-     *
-     * @param key 由 [createQrKey] 返回的 key
      */
     suspend fun checkQrCode(
         key: String,
@@ -500,6 +490,119 @@ class AuthApi(private val executor: RequestExecutor) {
                     "qrcode" to key,
                 ),
                 encryptType = EncryptType.WEB,
+            )
+        )
+    }
+
+    /**
+     * 获取已登录设备列表。
+     * 对齐 module/login_device.js
+     */
+    suspend fun getLoginDevices(): KuGouResponse {
+        val clientTimeMs = currentTimeMillis()
+        val token = executor.cookieJar.getToken()
+        val userId = executor.cookieJar.getUserid()
+
+        val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(buildJsonObject {
+            put("token", token)
+        }.toString())
+
+        val pk = Crypto.rsaEncrypt(
+            buildJsonObject {
+                put("clienttime_ms", clientTimeMs)
+                put("key", tempKey)
+            }.toString().encodeToByteArray(),
+            Crypto.publicRasKey
+        ).uppercase()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://userinfoservice.kugou.com",
+                url = "/v2/get_dev",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("plat", 1)
+                    put("userid", userId)
+                    put("clienttime_ms", clientTimeMs)
+                    put("pk", pk)
+                    put("params", encryptedParams)
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 登出/踢出选定设备。
+     * 对齐 module/login_device_kick.js
+     */
+    suspend fun kickDevice(targetMid: String): KuGouResponse {
+        val clientTimeMs = currentTimeMillis()
+        val dateNow = currentTimeMillis()
+        val token = executor.cookieJar.getToken()
+        val userId = executor.cookieJar.getUserid()
+
+        val (encryptedToken, _) = Crypto.aesEncryptAuto(buildJsonObject {
+            put("token", token)
+        }.toString())
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/loginservice/v1/dev_logout",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "appid" to executor.config.activeAppId,
+                    "clientver" to executor.config.activeClientVersion,
+                    "clienttime" to clientTimeMs,
+                    "mid" to PlatformIdentity.calculateMid(targetMid),
+                    "uuid" to "-",
+                    "dfid" to executor.cookieJar.getDfid(),
+                    "plat" to 1,
+                    "userid" to userId,
+                    "token" to encryptedToken,
+                    "t_mid" to executor.cookieJar.getGuid(),
+                    "t" to dateNow,
+                    "t_appid" to 3116,
+                    "t_clientver" to 10597,
+                    "srcappid" to KuGouConfig.Companion.SRC_APP_ID,
+                    "signature" to RequestSigner(executor.config).signParamsKey(dateNow)
+                ),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("Host" to "gateway.kugou.com")
+            )
+        )
+    }
+
+    /**
+     * 微信开放平台登录 (第一步: 获取二维码)。
+     * 对齐 module/login_wx_create.js
+     */
+    suspend fun createWxLogin(): KuGouResponse {
+        // 由于这涉及到微信 API，这里只是模拟 Node.js 端的逻辑
+        // 实际上在 Android 端通常使用微信 SDK
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://open.weixin.qq.com",
+                url = "/connect/sdk/qrconnect",
+                method = HttpMethod.GET,
+                // ... 内部逻辑较多，且依赖微信 AppID/Secret
+                encryptType = EncryptType.WEB
+            )
+        )
+    }
+
+    /**
+     * 微信登录状态检查。
+     * 对齐 module/login_wx_check.js
+     */
+    suspend fun checkWxLogin(uuid: String): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://long.open.weixin.qq.com",
+                url = "/connect/l/qrconnect",
+                method = HttpMethod.GET,
+                params = mapOf("f" to "json", "uuid" to uuid),
+                encryptType = EncryptType.WEB
             )
         )
     }
