@@ -29,7 +29,7 @@ class CookieJar(private val config: KuGouConfig) {
     }
 
     fun getToken(): String = _cookies["token"] ?: ""
-    fun getUserid(): String = _cookies["userid"] ?: "0"
+        fun getUserid(): String = _cookies["userid"] ?: "0"
     fun getDfid(): String = _cookies["dfid"] ?: "-"
     fun getMid(): String = _cookies["KUGOU_API_MID"] ?: ""
     fun getGuid(): String = _cookies["KUGOU_API_GUID"] ?: ""

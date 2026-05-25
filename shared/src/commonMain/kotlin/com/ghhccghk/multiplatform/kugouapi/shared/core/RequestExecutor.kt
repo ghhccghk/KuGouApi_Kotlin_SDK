@@ -57,7 +57,7 @@ class RequestExecutor internal constructor(
         if (!request.clearDefaultParams) {
             params["dfid"] = dfid
             params["mid"] = mid
-            params["uuid"] = "-"
+            params["uuid"] = mid
             params["appid"] = config.activeAppId
             params["clientver"] = config.activeClientVersion
             params["clienttime"] = clienttime
@@ -90,6 +90,8 @@ class RequestExecutor internal constructor(
             "X-Forwarded-For" to "114.114.114.114"
         )
         headers.putAll(request.headers)
+
+        println("[Search URL] ${baseUrl + request.url}?${params.entries.sortedBy { it.key }.joinToString("&") { "${it.key}=${it.value}" }}")
 
         return try {
             val sortedKeys = params.keys.sorted()

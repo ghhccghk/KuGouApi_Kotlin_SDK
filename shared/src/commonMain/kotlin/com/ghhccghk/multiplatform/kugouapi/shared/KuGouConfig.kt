@@ -16,6 +16,8 @@ data class KuGouConfig(
     internal val androidSignatureSalt: String
         get() = if (isLite) "LnT6xpN3khm36zse0QzvmgTZ3waWdRSA" else "OIlwieks28dk2k092lksi2UIkp"
 
+    internal val srcAppid : Int
+        get() = SRC_APP_ID
     internal val webSignatureSalt: String = "NVPh5oo715z5DIWAeQlhMDsWXXQV4hwt"
 
     internal val signKeySalt: String
