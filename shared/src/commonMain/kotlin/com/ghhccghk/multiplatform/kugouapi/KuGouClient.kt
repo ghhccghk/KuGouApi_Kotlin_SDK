@@ -1,7 +1,11 @@
 package com.ghhccghk.multiplatform.kugouapi
 
+import com.ghhccghk.multiplatform.kugouapi.api.AlbumApi
+import com.ghhccghk.multiplatform.kugouapi.api.ArtistApi
 import com.ghhccghk.multiplatform.kugouapi.api.AuthApi
+import com.ghhccghk.multiplatform.kugouapi.api.PlaylistApi
 import com.ghhccghk.multiplatform.kugouapi.api.SearchApi
+import com.ghhccghk.multiplatform.kugouapi.api.SongApi
 import com.ghhccghk.multiplatform.kugouapi.core.CookieJar
 import com.ghhccghk.multiplatform.kugouapi.core.RequestExecutor
 
@@ -26,4 +30,8 @@ class KuGouClient(
 
     val auth = AuthApi(executor)
     val search = SearchApi(executor)
+    val album = AlbumApi(executor)
+    val artist = ArtistApi(executor)
+    val playlist = PlaylistApi(executor)
+    val song = SongApi(executor)
 }
