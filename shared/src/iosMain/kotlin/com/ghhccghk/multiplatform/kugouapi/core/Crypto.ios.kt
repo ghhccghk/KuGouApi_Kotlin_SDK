@@ -95,6 +95,9 @@ actual object Crypto {
         return "" // placeholder
     }
     // ... all the pure helper methods from previous Crypto.ios.kt implementation
+    actual fun rsaEncryptRaw(data: ByteArray, publicKeyPem: String): String {
+        TODO("Not yet implemented")
+    }
 }
 
 // Extension methods for NSData/ByteArray

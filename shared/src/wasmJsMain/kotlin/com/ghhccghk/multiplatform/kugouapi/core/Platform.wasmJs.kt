@@ -1,4 +1,4 @@
-package com.ghhccghk.multiplatform.kugouapi
+package com.ghhccghk.multiplatform.kugouapi.core
 
 class WasmPlatform: Platform {
     override val name: String = "Web with Kotlin/Wasm"
