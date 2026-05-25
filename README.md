@@ -1,7 +1,8 @@
 # KuGou Music API Kotlin Multiplatform SDK
 
-基于 Kotlin Multiplatform (KMP) 重新实现的酷狗音乐 API SDK。对齐 [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) 的 Node.js 实现，支持 Android、iOS、JVM、Web (Wasm/JS) 等多平台。
 
+### 基于 Kotlin Multiplatform (KMP) 重新实现的酷狗音乐 API SDK。对齐 [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) 的 Node.js 实现，支持 Android、iOS、JVM、Web (Wasm/JS) 等多平台。
+### 使用了ChatGPT，Gemini，claude 等Ai模型辅助加速开发，可能会有错误
 ---
 
 ## 🚀 核心特性
