@@ -1,8 +1,9 @@
-package com.ghhccghk.multiplatform.kugouapi.shared.core
+package com.ghhccghk.multiplatform.kugouapi.core
 
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
 import javax.crypto.Cipher
@@ -78,7 +79,7 @@ actual object Crypto {
         return Base64.getEncoder().encodeToString(data)
     }
 
-    private fun getRsaPublicKey(publicKeyPem: String): java.security.interfaces.RSAPublicKey {
+    private fun getRsaPublicKey(publicKeyPem: String): RSAPublicKey {
         val pemContent = publicKeyPem
             .replace("-----BEGIN PUBLIC KEY-----", "")
             .replace("-----END PUBLIC KEY-----", "")
@@ -87,7 +88,7 @@ actual object Crypto {
             .trim()
         val keyBytes = Base64.getDecoder().decode(pemContent)
         val keyFactory = KeyFactory.getInstance("RSA")
-        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as java.security.interfaces.RSAPublicKey
+        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as RSAPublicKey
     }
 
     private fun hexToBytes(hex: String): ByteArray {

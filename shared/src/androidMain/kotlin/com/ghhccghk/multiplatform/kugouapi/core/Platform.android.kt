@@ -1,3 +1,3 @@
-package com.ghhccghk.multiplatform.kugouapi.shared.core
+package com.ghhccghk.multiplatform.kugouapi.core
 
 actual fun currentTimeMillis(): Long = System.currentTimeMillis()

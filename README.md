@@ -1,3 +1,8 @@
+### 这个是酷狗APi 基于Kotlin Multiplatform的重新实现项目，目前打算支持Android，Ios,Windows,Linux 平台
+
+感谢 [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)的实现
+
+
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).
 
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,

@@ -1,9 +1,10 @@
-package com.ghhccghk.multiplatform.kugouapi.shared.core
+package com.ghhccghk.multiplatform.kugouapi.core
 
 import android.util.Base64
 import java.math.BigInteger
 import java.security.KeyFactory
 import java.security.MessageDigest
+import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
@@ -82,11 +83,11 @@ actual object Crypto {
         return Base64.encodeToString(data, Base64.NO_WRAP)
     }
 
-    private fun getRsaPublicKeySpec(publicKeyPem: String): java.security.interfaces.RSAPublicKey {
+    private fun getRsaPublicKeySpec(publicKeyPem: String): RSAPublicKey {
         val pemContent = extractPemContent(publicKeyPem)
         val keyBytes = Base64.decode(pemContent, Base64.DEFAULT)
         val keyFactory = KeyFactory.getInstance("RSA")
-        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as java.security.interfaces.RSAPublicKey
+        return keyFactory.generatePublic(X509EncodedKeySpec(keyBytes)) as RSAPublicKey
     }
 
     private fun extractPemContent(pem: String): String {
