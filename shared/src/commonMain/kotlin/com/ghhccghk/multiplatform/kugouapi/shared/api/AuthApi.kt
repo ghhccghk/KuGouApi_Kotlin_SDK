@@ -1,16 +1,20 @@
 package com.ghhccghk.multiplatform.kugouapi.shared.api
 
+import com.ghhccghk.multiplatform.kugouapi.shared.KuGouConfig
 import com.ghhccghk.multiplatform.kugouapi.shared.core.*
 import com.ghhccghk.multiplatform.kugouapi.shared.model.EncryptType
 import kotlinx.serialization.json.*
 
 /**
  * 认证与身份 API
- * 提供设备注册、登录、身份验证相关功能。
+ * 提供设备注册、密码登录、手机验证码登录、Token 刷新、二维码登录等功能。
  */
 class AuthApi(private val executor: RequestExecutor) {
 
-    private val json = Json { ignoreUnknownKeys = true }
+    // ============================================================
+    //  设备注册
+    //  对齐 module/register_dev.js
+    // ============================================================
 
     /**
      * 注册设备以获取设备唯一标识 dfid。
@@ -58,7 +62,6 @@ class AuthApi(private val executor: RequestExecutor) {
         buildSerial: String = "unknown",
         device: String = "marble",
         manufacturer: String = "Xiaomi",
-        // 传感器信息
         accelerometer: Boolean = false,
         accelerometerValue: String = "",
         gravity: Boolean = false,
@@ -82,7 +85,7 @@ class AuthApi(private val executor: RequestExecutor) {
         val useridStr = executor.cookieJar.getUserid()
         val token = executor.cookieJar.getToken()
 
-        // 1. 准备设备指纹数据 (原始明文 JSON)
+        // 1. 准备设备指纹数据
         val dataMap = buildJsonObject {
             put("availableRamSize", availableRamSize)
             put("availableRomSize", availableRomSize)
@@ -97,7 +100,6 @@ class AuthApi(private val executor: RequestExecutor) {
             put("imsi", "")
             put("manufacturer", manufacturer)
             put("uuid", guid)
-            // 传感器信息
             put("accelerometer", accelerometer)
             put("accelerometerValue", accelerometerValue)
             put("gravity", gravity)
@@ -118,25 +120,19 @@ class AuthApi(private val executor: RequestExecutor) {
             put("temperatureValue", temperatureValue)
         }
 
-        // 2. AES 加密流程 (等价于 playlistAesEncrypt)
-        // 使用 6 位随机字符作为密钥种子，派生出 MD5 的前 16 位为 Key，后 16 位为 IV
+        // 2. AES 加密 (playlistAesEncrypt)
         val aesKeyBase = PlatformIdentity.generateRandomString(6).lowercase()
         val md5Key = Crypto.md5(aesKeyBase)
         val encryptKey = md5Key.substring(0, 16)
         val iv = md5Key.substring(16, 32)
-        
-        val dataStr = dataMap.toString()
-        val encryptedData = Crypto.aesEncryptBase64(dataStr, encryptKey, iv)
+        val encryptedData = Crypto.aesEncryptBase64(dataMap.toString(), encryptKey, iv)
 
-        // 3. RSA 加密流程 (等价于 rsaEncrypt2)
-        // 拼接包含 AES 种子密钥、UID 和 Token 的元数据进行加密传输
+        // 3. RSA 加密 (rsaEncrypt2)
         val rsaData = buildJsonObject {
             put("aes", aesKeyBase)
-            val uid = useridStr.toLongOrNull() ?: 0L
-            put("uid", uid)
+            put("uid", useridStr.toLongOrNull() ?: 0L)
             put("token", token)
         }.toString().encodeToByteArray()
-        
         val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.publicRasKey)
 
         // 4. 发起网络请求
@@ -145,14 +141,10 @@ class AuthApi(private val executor: RequestExecutor) {
                 baseUrl = "https://userservice.kugou.com",
                 url = "/risk/v2/r_register_dev",
                 method = HttpMethod.POST,
-                data = encryptedData, // Body 为 AES 加密后的密文
-                params = mapOf(
-                    "part" to 1,
-                    "platid" to 1,
-                    "p" to p // 签名参数 P 为 RSA 加密后的密钥元数据
-                ),
+                data = encryptedData,
+                params = mapOf("part" to 1, "platid" to 1, "p" to p),
                 encryptType = EncryptType.ANDROID,
-                responseType = ResponseType.BYTES // 注册接口返回加密二进制流
+                responseType = ResponseType.BYTES,
             )
         )
 
@@ -161,42 +153,22 @@ class AuthApi(private val executor: RequestExecutor) {
             val bytesStr = response.body["bytes"]?.jsonPrimitive?.content ?: ""
             if (bytesStr.isNotEmpty()) {
                 try {
-                    // 将返回的字节流转回 Base64 并使用之前的 AES Key 解密
                     val bytes = bytesStr.split(",").map { it.toByte() }.toByteArray()
                     val responseBase64 = Crypto.encodeBase64(bytes)
                     val decryptedJson = Crypto.aesDecryptBase64(responseBase64, encryptKey, iv)
-                    
-                    val body = json.parseToJsonElement(decryptedJson) as JsonObject
+                    val body = Json.parseToJsonElement(decryptedJson) as JsonObject
                     val data = body["data"]?.jsonObject ?: buildJsonObject {}
                     val dfid = data["dfid"]?.jsonPrimitive?.content
-                    
-                    // 成功获取后，将 dfid 存入持久化 CookieJar
                     if (dfid != null) {
                         executor.cookieJar["dfid"] = dfid
                     }
-
-                    // 合并本地生成的身份信息（guid, mid, dev 等）到结果中，方便调用方使用
-                    val mergedData = buildJsonObject {
-                        data.forEach { (k, v) -> put(k, v) }
-                        put("mid", executor.cookieJar.getMid())
-                        put("guid", executor.cookieJar.getGuid())
-                        put("serverDev", executor.cookieJar.getDev())
-                        put("mac", executor.cookieJar["KUGOU_API_MAC"] ?: "02:00:00:00:00:00")
-                    }
-
                     val mergedBody = buildJsonObject {
-                        // 确保响应结构包含通用的 status 和 error_code 字段
-                        put("status", body["status"] ?: JsonPrimitive(1))
-                        put("error_code", body["error_code"] ?: JsonPrimitive(0))
-                        body.forEach { (k, v) -> 
-                            if (k != "data" && k != "status" && k != "error_code") put(k, v) 
-                        }
-                        put("data", mergedData)
+                        body.forEach { (k, v) -> if (k != "data") put(k, v) }
+                        put("data", data)
                     }
-
                     return response.copy(body = mergedBody)
                 } catch (e: Exception) {
-                    return response.copy(body = buildJsonObject { 
+                    return response.copy(body = buildJsonObject {
                         put("status", 0)
                         put("error_code", -1)
                         put("msg", "解密失败: ${e.message}")
@@ -208,31 +180,75 @@ class AuthApi(private val executor: RequestExecutor) {
         return response
     }
 
-    suspend fun loginByPassword(username: String, password: String): KuGouResponse {
+    // ============================================================
+    //  发送验证码
+    //  对齐 module/captcha_sent.js
+    // ============================================================
+
+    /**
+     * 发送手机验证码（用于 [loginByPhoneCode] 登录）。
+     *
+     * @param mobile 手机号
+     */
+    suspend fun sendCaptcha(
+        mobile: String,
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "http://login.user.kugou.com",
+                url = "/v7/send_mobile_code",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("businessid", 5)
+                    put("mobile", mobile)
+                    put("plat", 3)
+                },
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = false,
+            )
+        )
+    }
+
+    // ============================================================
+    //  密码登录
+    //  对齐 module/login.js
+    // ============================================================
+
+    /**
+     * 账号密码登录。
+     *
+     * 加密流程：
+     * 1. AES 加密 `{pwd, code, clienttime_ms}` → 密文 HEX + 随机种子
+     * 2. RSA 加密 `{clienttime_ms, key: 种子}` → 签名 pk
+     * 3. POST `/v9/login_by_pwd`
+     *
+     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
+     *
+     * @param username 用户名（酷狗号/手机号/邮箱）
+     * @param password 密码
+     */
+    suspend fun loginByPassword(
+        username: String,
+        password: String,
+    ): KuGouResponse {
         val dateNow = currentTimeMillis()
 
-        // === cryptoAesEncrypt 等价实现 ===
-        // randomString(16).toLowerCase() → 16位随机小写
-        val tempKey = PlatformIdentity.generateRandomString(16).lowercase()
-        val aesKey = Crypto.md5(tempKey).substring(0, 32)   // 完整32位MD5，不是16位！
-        val iv = aesKey.substring(aesKey.length - 16)        // key 的最后16位
-
-        // 加密 {pwd, code, clienttime_ms}，输出 HEX
+        // 1. AES 加密密码
         val encryptInput = buildJsonObject {
             put("pwd", password)
             put("code", "")
             put("clienttime_ms", dateNow)
         }.toString()
-        val encryptedParams = Crypto.aesEncrypt(encryptInput, aesKey, iv)  // ← HEX 输出
+        val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(encryptInput)
 
-        // === cryptoRSAEncrypt 等价实现（原始模幂，非PKCS1）===
+        // 2. RSA 加密密钥种子
         val rsaInput = buildJsonObject {
             put("clienttime_ms", dateNow)
             put("key", tempKey)
         }.toString()
-        val pk = Crypto.rsaEncryptRaw(rsaInput.encodeToByteArray(), Crypto.publicRasKey).uppercase()
+        val pk = Crypto.rsaEncrypt(rsaInput.encodeToByteArray(), Crypto.publicRasKey).uppercase()
 
-        // === 构建 dataMap（key 顺序必须和 JS 一致）===
+        // 3. 构建请求参数
         val dataMap = buildJsonObject {
             put("plat", 1)
             put("support_multi", 1)
@@ -245,7 +261,8 @@ class AuthApi(private val executor: RequestExecutor) {
             put("pk", pk)
         }
 
-        val response = executor.execute(
+        // 4. 发送请求
+        return executor.execute(
             KuGouRequest(
                 url = "/v9/login_by_pwd",
                 method = HttpMethod.POST,
@@ -254,7 +271,224 @@ class AuthApi(private val executor: RequestExecutor) {
                 headers = mapOf("x-router" to "login.user.kugou.com"),
             )
         )
+    }
 
-        return response
+    // ============================================================
+    //  手机验证码登录
+    //  对齐 module/login_cellphone.js
+    // ============================================================
+
+    /**
+     * 手机号 + 验证码登录。
+     *
+     * 加密流程与密码登录类似，但使用手机号和验证码作为凭据。
+     *
+     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
+     *
+     * @param mobile 手机号
+     * @param code 验证码
+     */
+    suspend fun loginByPhoneCode(
+        mobile: String,
+        code: String,
+    ): KuGouResponse {
+        val dateNow = currentTimeMillis()
+
+        // 1. AES 加密手机号和验证码
+        val encryptInput = buildJsonObject {
+            put("mobile", mobile)
+            put("code", code)
+        }.toString()
+        val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(encryptInput)
+
+        // 手机号脱敏（前2位 + ***** + 最后1位）
+        val maskedMobile = if (mobile.length >= 11) {
+            "${mobile.substring(0, 2)}*****${mobile.substring(10, 11)}"
+        } else {
+            mobile
+        }
+
+        // 2. 构建请求参数
+        val dataMap = buildJsonObject {
+            put("plat", 1)
+            put("support_multi", 1)
+            put("t1", 0)
+            put("t2", 0)
+            put("clienttime_ms", dateNow)
+            put("mobile", maskedMobile)
+            put("key", RequestSigner(executor.config).signParamsKey(dateNow))
+            put("params", encryptedParams)
+            put("pk", Crypto.rsaEncrypt(
+                buildJsonObject {
+                    put("clienttime_ms", dateNow)
+                    put("key", tempKey)
+                }.toString().encodeToByteArray(),
+                Crypto.publicRasKey
+            ).uppercase())
+            put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
+        }
+
+        // 3. 发送请求
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://loginserviceretry.kugou.com",
+                url = "/v7/login_by_verifycode",
+                method = HttpMethod.POST,
+                data = dataMap,
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf(
+                    "support-calm" to "1",
+                    "User-Agent" to "Android16-1070-11440-130-0-LOGIN-wifi",
+                ),
+            )
+        )
+    }
+
+    // ============================================================
+    //  Token 刷新登录
+    //  对齐 module/login_token.js
+    // ============================================================
+
+    /**
+     * 使用已有 Token 刷新登录态。
+     *
+     * 加密流程：
+     * 1. 使用固定 Key/IV AES 加密 `{clienttime, token}` → p3
+     * 2. 随机 AES 加密空对象 → params + 种子
+     * 3. RSA 加密 `{clienttime_ms, key: 种子}` → pk
+     *
+     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
+     *
+     * @param token 已有的登录 Token（为空时从 CookieJar 自动读取）
+     * @param userid 用户 ID（为空时从 CookieJar 自动读取）
+     */
+    suspend fun loginByToken(
+        token: String = "",
+        userid: String = "",
+    ): KuGouResponse {
+        val dateNow = currentTimeMillis()
+        val actualToken = token.ifEmpty { executor.cookieJar.getToken() }
+        val actualUserid = userid.ifEmpty { executor.cookieJar.getUserid() }
+
+        // 1. 使用固定 Key/IV 加密 clienttime + token → p3
+        val fixedKey = "90b8382a1bb4ccdcf063102053fd75b8"
+        val fixedIv = "f063102053fd75b8"
+        val p3Input = buildJsonObject {
+            put("clienttime", dateNow / 1000)
+            put("token", actualToken)
+        }.toString()
+        val p3 = Crypto.aesEncryptWith(p3Input, fixedKey, fixedIv)
+
+        // 2. 随机 AES 加密空对象 → params + 种子
+        val (paramsHex, tempKey) = Crypto.aesEncryptAuto("{}")
+
+        // 3. RSA 加密密钥种子
+        val pk = Crypto.rsaEncrypt(
+            buildJsonObject {
+                put("clienttime_ms", dateNow)
+                put("key", tempKey)
+            }.toString().encodeToByteArray(),
+            Crypto.publicRasKey
+        )
+
+        // 4. 构建请求参数
+        val dataMap = buildJsonObject {
+            put("dfid", executor.cookieJar.getDfid())
+            put("p3", p3)
+            put("plat", 1)
+            put("t1", 0)
+            put("t2", 0)
+            put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
+            put("pk", pk)
+            put("params", paramsHex)
+            put("userid", actualUserid)
+            put("clienttime_ms", dateNow)
+        }
+
+        // 5. 发送请求
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "http://login.user.kugou.com",
+                url = "/v5/login_by_token",
+                method = HttpMethod.POST,
+                data = dataMap,
+                encryptType = EncryptType.ANDROID,
+            )
+        )
+    }
+
+    // ============================================================
+    //  二维码登录
+    //  对齐 module/login_qr_key.js / login_qr_check.js
+    // ============================================================
+
+    /**
+     * 生成二维码登录的唯一 Key。
+     *
+     * 返回的 key 用于创建二维码图片和轮询扫码状态。
+     *
+     * @param type 应用类型，"standard" 或 "web"（影响 appid）
+     */
+    suspend fun createQrKey(
+        type: String = "standard",
+    ): KuGouResponse {
+        val appid = if (type == "web") 1014 else 1001
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://login-user.kugou.com",
+                url = "/v2/qrcode",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "appid" to appid,
+                    "type" to 1,
+                    "plat" to 4,
+                    "qrcode_txt" to "https://h5.kugou.com/apps/loginQRCode/html/index.html?appid=${executor.config.activeAppId}&",
+                    "srcappid" to KuGouConfig.SRC_APP_ID,
+                ),
+                encryptType = EncryptType.WEB,
+            )
+        )
+    }
+
+    /**
+     * 根据 key 生成二维码登录 URL（本地生成，不发送网络请求）。
+     *
+     * @param key 由 [createQrKey] 返回的 key
+     * @return 二维码登录页面的完整 URL
+     */
+    fun createQrCodeUrl(key: String): String {
+        return "https://h5.kugou.com/apps/loginQRCode/html/index.html?qrcode=$key"
+    }
+
+    /**
+     * 轮询检查二维码扫码状态。
+     *
+     * 状态码：
+     * - 0: 二维码已过期
+     * - 1: 等待扫码
+     * - 2: 已扫码，等待确认
+     * - 4: 授权登录成功（此时响应中会包含 token 和 userid）
+     *
+     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
+     *
+     * @param key 由 [createQrKey] 返回的 key
+     */
+    suspend fun checkQrCode(
+        key: String,
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://login-user.kugou.com",
+                url = "/v2/get_userinfo_qrcode",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "plat" to 4,
+                    "appid" to executor.config.activeAppId,
+                    "srcappid" to KuGouConfig.SRC_APP_ID,
+                    "qrcode" to key,
+                ),
+                encryptType = EncryptType.WEB,
+            )
+        )
     }
 }

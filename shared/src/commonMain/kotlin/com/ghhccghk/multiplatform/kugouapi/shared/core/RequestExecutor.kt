@@ -86,8 +86,6 @@ class RequestExecutor internal constructor(
             "kg-thash" to "5d816a0",
             "kg-rec" to "1",
             "kg-rf" to "B9EDA08A64250DEFFBCADDEE00F8F25F",
-            "X-Real-IP" to "114.114.114.114",
-            "X-Forwarded-For" to "114.114.114.114"
         )
         headers.putAll(request.headers)
 
@@ -110,12 +108,24 @@ class RequestExecutor internal constructor(
                 }
                 else -> {
                     client.post(baseUrl + request.url) {
-                        // 如果 body 是 String（Base64 密文），移除默认的 application/json，防止服务器解析失败
-                        if (request.data !is String) {
-                            contentType(ContentType.Application.Json)
+                        // 将 body 统一转为可序列化格式
+                        val bodyData = when (val data = request.data) {
+                            null -> null
+                            is String -> {
+                                // String body 不设 application/json
+                                data
+                            }
+                            is JsonObject -> {
+                                contentType(ContentType.Application.Json)
+                                data.toString() // 转为 JSON 字符串
+                            }
+                            else -> {
+                                contentType(ContentType.Application.Json)
+                                data
+                            }
                         }
                         headers.forEach { (k, v) -> header(k, v) }
-                        request.data?.let { setBody(it) }
+                        bodyData?.let { setBody(it) }
                         url {
                             for (key in sortedKeys) {
                                 val value = params[key]

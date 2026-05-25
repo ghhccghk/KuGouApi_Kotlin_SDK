@@ -3,7 +3,7 @@ package com.ghhccghk.multiplatform.kugouapi.shared.core
 import com.ghhccghk.multiplatform.kugouapi.shared.KuGouConfig
 import com.ghhccghk.multiplatform.kugouapi.shared.model.EncryptType
 
-internal class RequestSigner(private val config: KuGouConfig) {
+class RequestSigner(private val config: KuGouConfig) {
 
     companion object {
         fun normalize(value: Any?): String = when (value) {
@@ -61,6 +61,15 @@ internal class RequestSigner(private val config: KuGouConfig) {
         val salt = config.signKeySalt
         val appId = appid ?: config.activeAppId
         return Crypto.md5("$hash$salt$appId$mid$userid")
+    }
+
+    /**
+     * signParamsKey: MD5(appid + salt + clientver + data)
+     * 对齐 Node.js helper.js 中的 signParamsKey
+     */
+    fun signParamsKey(data: Any): String {
+        val salt = config.androidSignatureSalt
+        return Crypto.md5("${config.activeAppId}$salt${config.activeClientVersion}$data")
     }
 
     fun computeSignature(
