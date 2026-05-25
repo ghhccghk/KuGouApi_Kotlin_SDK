@@ -1,10 +1,8 @@
 package com.ghhccghk.multiplatform.kugouapi.api
 
-import com.ghhccghk.multiplatform.kugouapi.core.HttpMethod
-import com.ghhccghk.multiplatform.kugouapi.core.KuGouRequest
-import com.ghhccghk.multiplatform.kugouapi.core.KuGouResponse
-import com.ghhccghk.multiplatform.kugouapi.core.RequestExecutor
-import com.ghhccghk.multiplatform.kugouapi.model.SearchType
+import com.ghhccghk.multiplatform.kugouapi.core.*
+import com.ghhccghk.multiplatform.kugouapi.model.*
+import kotlinx.serialization.json.*
 
 class SearchApi(private val executor: RequestExecutor) {
 

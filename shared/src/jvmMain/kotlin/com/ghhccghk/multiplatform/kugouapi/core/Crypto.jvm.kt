@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.Base64
+import java.util.zip.Inflater
 import javax.crypto.Cipher
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
@@ -18,12 +19,14 @@ actual object Crypto {
     }
 
     actual fun aesEncrypt(plaintext: String, key: String, iv: String): String {
-        val bytes = aesOperation(plaintext.toByteArray(Charsets.UTF_8), key, iv, Cipher.ENCRYPT_MODE)
+        val bytes =
+            aesOperation(plaintext.toByteArray(Charsets.UTF_8), key, iv, Cipher.ENCRYPT_MODE)
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
     actual fun aesEncryptBase64(plaintext: String, key: String, iv: String): String {
-        val bytes = aesOperation(plaintext.toByteArray(Charsets.UTF_8), key, iv, Cipher.ENCRYPT_MODE)
+        val bytes =
+            aesOperation(plaintext.toByteArray(Charsets.UTF_8), key, iv, Cipher.ENCRYPT_MODE)
         return Base64.getEncoder().encodeToString(bytes)
     }
 
@@ -79,6 +82,19 @@ actual object Crypto {
         return Base64.getEncoder().encodeToString(data)
     }
 
+    actual fun inflate(data: ByteArray): ByteArray {
+        val inflater = Inflater()
+        inflater.setInput(data)
+        val outputStream = java.io.ByteArrayOutputStream(data.size)
+        val buffer = ByteArray(1024)
+        while (!inflater.finished()) {
+            val count = inflater.inflate(buffer)
+            outputStream.write(buffer, 0, count)
+        }
+        outputStream.close()
+        return outputStream.toByteArray()
+    }
+
     private fun getRsaPublicKey(publicKeyPem: String): RSAPublicKey {
         val pemContent = publicKeyPem
             .replace("-----BEGIN PUBLIC KEY-----", "")
@@ -100,17 +116,4 @@ actual object Crypto {
         return data
     }
 
-    actual fun rsaEncryptRaw(data: ByteArray, publicKeyPem: String): String {
-        val publicKey = getRsaPublicKey(publicKeyPem)
-        val keyLength = (publicKey.modulus.bitLength() + 7) / 8  // 1024-bit → 128 bytes
-
-        // JS: padded.set(buffer) → 数据在头部，尾部补零
-        val padded = if (data.size < keyLength) {
-            ByteArray(keyLength).also { data.copyInto(it, destinationOffset = 0) }
-        } else data
-
-        val message = BigInteger(1, padded)
-        val encrypted = message.modPow(publicKey.publicExponent, publicKey.modulus)
-        return encrypted.toString(16).padStart(keyLength * 2, '0')  // 小写 hex，256 chars
-    }
 }

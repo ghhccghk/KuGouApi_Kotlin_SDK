@@ -1,8 +1,7 @@
 package com.ghhccghk.multiplatform.kugouapi.api
 
 import com.ghhccghk.multiplatform.kugouapi.core.*
-import com.ghhccghk.multiplatform.kugouapi.model.AudioRelatedSort
-import com.ghhccghk.multiplatform.kugouapi.model.EncryptType
+import com.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
@@ -13,9 +12,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌曲信息 (批量)
-     * 对齐 module/audio.js
-     *
-     * @param hash 歌曲 Hash，多个用逗号分隔
      */
     suspend fun getAudioInfo(hash: String): KuGouResponse {
         val hashes = hash.split(",").filter { it.isNotEmpty() }
@@ -44,10 +40,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 获取相关歌曲/详情
-     * 对齐 module/audio_related.js
-     *
-     * @param albumAudioId 专辑歌曲 ID
-     * @param showDetail 是否显示详情 (true 会调用 /v2/audio_related/total)
      */
     suspend fun getRelatedAudio(
         albumAudioId: Long,
@@ -89,7 +81,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 匹配伴奏
-     * 对齐 module/audio_accompany_matching.js
      */
     suspend fun matchAccompany(
         hash: String,
@@ -107,7 +98,6 @@ class SongApi(private val executor: RequestExecutor) {
             "appid" to executor.config.activeAppId
         )
 
-        // 伴奏接口使用特殊的签名方式
         val str = "*s&iN#G70*"
         val paramsString = params.keys.sorted().joinToString("&") { key ->
             "$key=${params[key]}"
@@ -129,7 +119,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 获取 KTV 作品总数
-     * 对齐 module/audio_ktv_total.js
      */
     suspend fun getKtvTotal(
         songId: Long,
@@ -168,7 +157,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌曲权限信息 (Lite 版)
-     * 对齐 module/privilege_lite.js
      */
     suspend fun getPrivilegeLite(hash: String, albumId: String = ""): KuGouResponse {
         val hashes = hash.split(",").filter { it.isNotEmpty() }
@@ -209,10 +197,7 @@ class SongApi(private val executor: RequestExecutor) {
     }
 
     /**
-     * 根据 ID 获取详细元数据 (歌手/专辑/歌曲)
-     * 对齐 module/krm_audio.js
-     *
-     * @param albumAudioId 多个用逗号分隔
+     * 根据 ID 获取详细元数据
      */
     suspend fun getKrmAudio(albumAudioId: String, fields: String = "base"): KuGouResponse {
         val ids = albumAudioId.split(",").filter { it.isNotEmpty() }
@@ -243,11 +228,6 @@ class SongApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌词
-     * 对齐 module/lyric.js
-     *
-     * @param id 歌词 ID
-     * @param accessKey 访问 Key
-     * @param decode 是否自动解码 KRC 格式
      */
     suspend fun getLyric(
         id: String,

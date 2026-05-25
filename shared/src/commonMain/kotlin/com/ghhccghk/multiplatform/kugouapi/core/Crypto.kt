@@ -1,5 +1,8 @@
 package com.ghhccghk.multiplatform.kugouapi.core
 
+import kotlin.io.encoding.Base64
+import io.ktor.util.*
+
 /**
  * Platform-specific cryptographic operations.
  */
@@ -28,15 +31,14 @@ expect object Crypto {
     /** Encode bytes to Base64 string */
     fun encodeBase64(data: ByteArray): String
 
-    fun rsaEncryptRaw(data: ByteArray, publicKeyPem: String): String
+    fun inflate(data: ByteArray): ByteArray
 }
 
 internal val Crypto.publicRasKey: String get() = "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB\n-----END PUBLIC KEY-----"
 
-// ============================================================
-//  AES 加解密便捷方法
-//  对齐 Node.js util/crypto.js 中的 cryptoAesEncrypt / cryptoAesDecrypt
-// ============================================================
+fun Crypto.decodeBase64(base64String: String): ByteArray {
+    return Base64.decode(base64String)
+}
 
 /**
  * AES 加密（自动生成密钥）—— 对齐 cryptoAesEncrypt(data)
@@ -74,4 +76,33 @@ fun Crypto.aesDecryptWithSeed(ciphertextHex: String, tempKey: String): String {
     val key = md5.substring(0, 32)
     val iv = key.substring(16)
     return aesDecrypt(ciphertextHex, key, iv)
+}
+
+/**
+ * KRC 歌词解码 (全平台通用方案)
+ */
+fun Crypto.decodeLyrics(valData: ByteArray): String {
+    if (valData.size < 4) return ""
+
+    // 酷狗固定的 16 字节解密密钥
+    val enKey = intArrayOf(64, 71, 97, 119, 94, 50, 116, 71, 81, 54, 49, 45, 206, 210, 110, 105)
+
+    // 跳过前 4 个字节（文件头 "krc1"）
+    val krcBytes = valData.copyOfRange(4, valData.size)
+    val len = krcBytes.size
+
+    // 解密循环
+    for (index in 0 until len) {
+        // 修复点：通过 and 0xFF 确保异或后的数据在 0~255 范围内，防止在 iOS Native 编译或运行时因符号位溢出报错
+        val decryptedByte = (krcBytes[index].toInt() xor enKey[index % enKey.size]) and 0xFF
+        krcBytes[index] = decryptedByte.toByte()
+    }
+
+    return try {
+        // 核心修改：调用 Ktor 提供的全平台通用工具方法库进行解压
+        // 这里的 gzip = false 表示使用标准的 Deflate 算法解压
+        inflate(krcBytes).decodeToString()
+    } catch (_: Exception) {
+        ""
+    }
 }

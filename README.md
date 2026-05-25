@@ -1,6 +1,6 @@
 ### 这个是酷狗APi 基于Kotlin Multiplatform的重新实现项目，目前打算支持Android，Ios,Windows,Linux 平台
 
-感谢 [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html)的实现
+感谢 [KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi)的实现
 
 
 This is a Kotlin Multiplatform project targeting Android, iOS, Web, Desktop (JVM).

@@ -1,8 +1,8 @@
 package com.ghhccghk.multiplatform.kugouapi.api
 
-import com.ghhccghk.multiplatform.kugouapi.shared.core.*
+import com.ghhccghk.multiplatform.kugouapi.core.*
+import com.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
-import kotlin.text.get
 
 /**
  * 歌单相关 API
@@ -11,7 +11,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 收藏/创建歌单
-     * 对齐 module/playlist_add.js
      */
     suspend fun addPlaylist(
         name: String,
@@ -58,14 +57,12 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 取消收藏/删除歌单
-     * 对齐 module/playlist_del.js
      */
     suspend fun deletePlaylist(listId: Long): KuGouResponse {
         val clienttime = currentTimeMillis() / 1000
         val userid = executor.cookieJar.getUserid()
         val token = executor.cookieJar.getToken()
 
-        // 1. AES 加密 (playlistAesEncrypt)
         val dataMap = buildJsonObject {
             put("listid", listId)
             put("total_ver", 0)
@@ -77,7 +74,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
         val iv = md5Key.substring(16, 32)
         val encryptedData = Crypto.aesEncryptBase64(dataMap.toString(), encryptKey, iv)
 
-        // 2. RSA 加密 (rsaEncrypt2)
         val rsaData = buildJsonObject {
             put("aes", aesKeyBase)
             put("uid", userid.toLongOrNull() ?: 0L)
@@ -85,7 +81,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
         }.toString().encodeToByteArray()
         val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.publicRasKey).uppercase()
 
-        // 3. 请求
         val response = executor.execute(
             KuGouRequest(
                 url = "/v2/delete_list",
@@ -106,7 +101,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
             )
         )
 
-        // 4. 解压响应
         if (response.status == 200) {
             val bytesStr = response.body["bytes"]?.jsonPrimitive?.content ?: ""
             if (bytesStr.isNotEmpty()) {
@@ -123,7 +117,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌单详情
-     * 对齐 module/playlist_detail.js
      */
     suspend fun getPlaylistDetail(ids: String): KuGouResponse {
         val collectionIds = ids.split(",").filter { it.isNotEmpty() }
@@ -150,7 +143,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取音效歌单
-     * 对齐 module/playlist_effect.js
      */
     suspend fun getEffectPlaylists(page: Int = 1, pageSize: Int = 30): KuGouResponse {
         return executor.execute(
@@ -168,7 +160,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取相似歌单
-     * 对齐 module/playlist_similar.js
      */
     suspend fun getSimilarPlaylists(ids: String): KuGouResponse {
         val collectionIds = ids.split(",").filter { it.isNotEmpty() }
@@ -201,7 +192,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌单标签分类
-     * 对齐 module/playlist_tags.js
      */
     suspend fun getPlaylistTags(): KuGouResponse {
         return executor.execute(
@@ -220,7 +210,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌单所有歌曲 (公开版)
-     * 对齐 module/playlist_track_all.js
      */
     suspend fun getPlaylistTracks(
         id: String,
@@ -249,7 +238,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 获取歌单所有歌曲 (新版/私有版)
-     * 对齐 module/playlist_track_all_new.js
      */
     suspend fun getPlaylistTracksNew(
         listId: String,
@@ -280,8 +268,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 向歌单添加歌曲
-     * 对齐 module/playlist_tracks_add.js
-     *
      * @param data 格式: "name|hash|album_id|mixsongid", 多个用逗号分隔
      */
     suspend fun addTracks(listId: String, data: String): KuGouResponse {
@@ -333,8 +319,6 @@ class PlaylistApi(private val executor: RequestExecutor) {
 
     /**
      * 从歌单删除歌曲
-     * 对齐 module/playlist_tracks_del.js
-     *
      * @param fileIds 歌曲在歌单中的 ID，多个用逗号分隔
      */
     suspend fun removeTracks(listId: String, fileIds: String): KuGouResponse {
