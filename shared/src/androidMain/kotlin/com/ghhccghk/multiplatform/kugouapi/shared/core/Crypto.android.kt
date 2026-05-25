@@ -107,4 +107,18 @@ actual object Crypto {
         }
         return data
     }
+
+    actual fun rsaEncryptRaw(data: ByteArray, publicKeyPem: String): String {
+        val publicKey = getRsaPublicKeySpec(publicKeyPem)
+        val keyLength = (publicKey.modulus.bitLength() + 7) / 8  // 1024-bit → 128 bytes
+
+        // JS: padded.set(buffer) → 数据在头部，尾部补零
+        val padded = if (data.size < keyLength) {
+            ByteArray(keyLength).also { data.copyInto(it, destinationOffset = 0) }
+        } else data
+
+        val message = BigInteger(1, padded)
+        val encrypted = message.modPow(publicKey.publicExponent, publicKey.modulus)
+        return encrypted.toString(16).padStart(keyLength * 2, '0')  // 小写 hex，256 chars
+    }
 }

@@ -207,4 +207,54 @@ class AuthApi(private val executor: RequestExecutor) {
 
         return response
     }
+
+    suspend fun loginByPassword(username: String, password: String): KuGouResponse {
+        val dateNow = currentTimeMillis()
+
+        // === cryptoAesEncrypt 等价实现 ===
+        // randomString(16).toLowerCase() → 16位随机小写
+        val tempKey = PlatformIdentity.generateRandomString(16).lowercase()
+        val aesKey = Crypto.md5(tempKey).substring(0, 32)   // 完整32位MD5，不是16位！
+        val iv = aesKey.substring(aesKey.length - 16)        // key 的最后16位
+
+        // 加密 {pwd, code, clienttime_ms}，输出 HEX
+        val encryptInput = buildJsonObject {
+            put("pwd", password)
+            put("code", "")
+            put("clienttime_ms", dateNow)
+        }.toString()
+        val encryptedParams = Crypto.aesEncrypt(encryptInput, aesKey, iv)  // ← HEX 输出
+
+        // === cryptoRSAEncrypt 等价实现（原始模幂，非PKCS1）===
+        val rsaInput = buildJsonObject {
+            put("clienttime_ms", dateNow)
+            put("key", tempKey)
+        }.toString()
+        val pk = Crypto.rsaEncryptRaw(rsaInput.encodeToByteArray(), Crypto.publicRasKey).uppercase()
+
+        // === 构建 dataMap（key 顺序必须和 JS 一致）===
+        val dataMap = buildJsonObject {
+            put("plat", 1)
+            put("support_multi", 1)
+            put("clienttime_ms", dateNow)
+            put("t1", "562a6f12a6e803453647d16a08f5f0c2ff7eee692cba2ab74cc4c8ab47fc467561a7c6b586ce7dc46a63613b246737c03a1dc8f8d162d8ce1d2c71893d19f1d4b797685a4c6d3d81341cbde65e488c4829a9b4d42ef2df470eb102979fa5adcdd9b4eecfea8b909ff7599abeb49867640f10c3c70fc444effca9d15db44a9a6c907731e2bb0f22cd9b3536380169995693e5f0e2424e3378097d3813186e3fe96bbe7023808a0981b4e2b6135a76faac")
+            put("t2", "31c4daf4cf480169ccea1cb7d4a209295865a9d2b788510301694db229b87807469ea0d41b4d4b9173c2151da7294aeebfc9738df154bbdf11a4e117bb5dff6a3af8ce5ce333e681c1f29a44038f27567d58992eb81283e080778ac77db1400fdf49b7cf7e26be2e5af4da7830cc3be4")
+            put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
+            put("username", username)
+            put("params", encryptedParams)
+            put("pk", pk)
+        }
+
+        val response = executor.execute(
+            KuGouRequest(
+                url = "/v9/login_by_pwd",
+                method = HttpMethod.POST,
+                data = dataMap,
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "login.user.kugou.com"),
+            )
+        )
+
+        return response
+    }
 }
