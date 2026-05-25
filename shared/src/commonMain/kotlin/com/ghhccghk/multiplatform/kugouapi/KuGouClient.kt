@@ -16,10 +16,10 @@ import com.ghhccghk.multiplatform.kugouapi.core.RequestExecutor
  * ```
  */
 class KuGouClient(
-    val config: KuGouConfig = KuGouConfig()
-) {
+    val config: KuGouConfig = KuGouConfig(),
+    val cookieJar : CookieJar = CookieJar(config)
 
-    val cookieJar = CookieJar(config)
+) {
 
     private val executor =
         RequestExecutor(config, cookieJar)
