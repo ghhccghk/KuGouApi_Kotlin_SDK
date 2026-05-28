@@ -57,7 +57,7 @@ actual object Crypto {
         return cipher.doFinal(data)
     }
 
-    actual fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
+    actual suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
         val publicKey = getRsaPublicKey(publicKeyPem)
         val message = BigInteger(1, data)
         val encrypted = message.modPow(publicKey.publicExponent, publicKey.modulus)
@@ -73,7 +73,7 @@ actual object Crypto {
         return padded.joinToString("") { "%02x".format(it) }
     }
 
-    actual fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
+    actual suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
         val publicKey = getRsaPublicKey(publicKeyPem)
         val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
         cipher.init(Cipher.ENCRYPT_MODE, publicKey)

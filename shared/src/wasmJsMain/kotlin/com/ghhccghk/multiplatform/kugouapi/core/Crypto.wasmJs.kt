@@ -1,6 +1,8 @@
 package com.ghhccghk.multiplatform.kugouapi.core
 
-import kotlin.js.ExperimentalWasmJsInterop
+import kotlin.js.JsString
+import kotlin.js.Promise
+import kotlinx.coroutines.await
 
 @OptIn(ExperimentalWasmJsInterop::class)
 actual object Crypto {
@@ -49,10 +51,13 @@ actual object Crypto {
         return unpadded.decodeToString()
     }
 
-    actual fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
+    actual suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
         val pemContent = extractPem(publicKeyPem)
-        val keyBytes = decodeBase64(pemContent)
-        val (modulus, exponent) = parseRsaPublicKey(keyBytes)
+        val components = (wasmGetRsaKeyComponents(pemContent).unsafeCast<Promise<JsString>>()).await().toString()
+        val parts = components.split("|")
+        val modulus = parts[0]
+        val exponent = parts[1]
+
         val message = bytesToBigInteger(data)
         val result = jsBigIntModPow(message, exponent, modulus)
         val keyLength = jsBigIntByteLength(modulus)
@@ -60,8 +65,12 @@ actual object Crypto {
         return resultBytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
     }
 
-    actual fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
-        return rsaEncrypt(data, publicKeyPem)
+    actual suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
+        val pemContent = extractPem(publicKeyPem)
+        val dataBase64 = encodeBase64(data)
+        val resultBase64 = (wasmRsaPkcs1Encrypt(pemContent, dataBase64).unsafeCast<Promise<JsString>>()).await().toString()
+        val resultBytes = decodeBase64(resultBase64)
+        return resultBytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
     }
 
     actual fun encodeBase64(data: ByteArray): String {
@@ -530,43 +539,6 @@ actual object Crypto {
         return output
     }
 
-    // ============================================================
-    //  RSA helpers using @JsFun + BigInt
-    // ============================================================
-
-    private fun parseRsaPublicKey(keyBytes: ByteArray): Pair<String, String> {
-        var pos = 0
-
-        fun readTag(): Int { return keyBytes[pos++].toInt() and 0xFF }
-        fun readLength(): Int {
-            var len = keyBytes[pos++].toInt() and 0xFF
-            if (len > 127) {
-                val numBytes = len and 0x7F
-                len = 0
-                for (i in 0 until numBytes) {
-                    len = (len shl 8) or (keyBytes[pos++].toInt() and 0xFF)
-                }
-            }
-            return len
-        }
-
-        readTag(); readLength()            // SEQUENCE (outer)
-        readTag(); pos += readLength()     // SEQUENCE (algorithm identifier)
-        readTag(); readLength(); pos++     // BIT STRING
-        readTag(); readLength()            // SEQUENCE (RSA public key)
-
-        readTag() // INTEGER (modulus)
-        val modLen = readLength()
-        val modulusBytes = keyBytes.copyOfRange(pos, pos + modLen)
-        pos += modLen
-
-        readTag() // INTEGER (exponent)
-        val expLen = readLength()
-        val exponentBytes = keyBytes.copyOfRange(pos, pos + expLen)
-
-        return Pair(bytesToHexBigEndian(modulusBytes), bytesToHexBigEndian(exponentBytes))
-    }
-
     private fun bytesToHexBigEndian(bytes: ByteArray): String {
         val start = if (bytes.isNotEmpty() && bytes[0] == 0.toByte()) 1 else 0
         val sb = StringBuilder("0x")
@@ -638,18 +610,67 @@ private external fun wasmBigIntModPow(base: String, exponent: String, modulus: S
 
 @OptIn(ExperimentalWasmJsInterop::class)
 @JsFun("""
+    (function(pemBase64) {
+        return (async function() {
+            const binary = atob(pemBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const key = await crypto.subtle.importKey("spki", bytes, {name: "RSA-OAEP", hash: "SHA-256"}, true, ["encrypt"]);
+            const jwk = await crypto.subtle.exportKey("jwk", key);
+            
+            function b64ToHex(b64url) {
+                const bin = atob(b64url.replace(/-/g, '+').replace(/_/g, '/'));
+                let hex = '';
+                for (let i = 0; i < bin.length; i++) hex += bin.charCodeAt(i).toString(16).padStart(2, '0');
+                return '0x' + hex;
+            }
+            
+            return b64ToHex(jwk.n) + "|" + b64ToHex(jwk.e);
+        })();
+    })
+""")
+private external fun wasmGetRsaKeyComponents(pemBase64: String): JsAny
+
+@OptIn(ExperimentalWasmJsInterop::class)
+@JsFun("""
+    (function(pemBase64, dataBase64) {
+        return (async function() {
+            const pemBinary = atob(pemBase64);
+            const pemBytes = new Uint8Array(pemBinary.length);
+            for (let i = 0; i < pemBinary.length; i++) pemBytes[i] = pemBinary.charCodeAt(i);
+            
+            const dataBinary = atob(dataBase64);
+            const dataBytes = new Uint8Array(dataBinary.length);
+            for (let i = 0; i < dataBinary.length; i++) dataBytes[i] = dataBinary.charCodeAt(i);
+
+            const key = await crypto.subtle.importKey("spki", pemBytes, {name: "RSA-PKCS1-v1_5", hash: "SHA-256"}, true, ["encrypt"]);
+            const encrypted = await crypto.subtle.encrypt({name: "RSA-PKCS1-v1_5"}, key, dataBytes);
+            
+            const encryptedBytes = new Uint8Array(encrypted);
+            let binary = "";
+            for (let i = 0; i < encryptedBytes.length; i++) binary += String.fromCharCode(encryptedBytes[i]);
+            return btoa(binary);
+        })();
+    })
+""")
+private external fun wasmRsaPkcs1Encrypt(pemBase64: String, dataBase64: String): JsAny
+
+@OptIn(ExperimentalWasmJsInterop::class)
+@JsFun("""
     (function(base64Input) {
-        var binaryString = atob(base64Input);
-        var bytes = new Uint8Array(binaryString.length);
-        for (var i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-        }
-        var result = pako.inflate(bytes);
-        var resultBinary = '';
-        for (var i = 0; i < result.length; i++) {
-            resultBinary += String.fromCharCode(result[i]);
-        }
-        return btoa(resultBinary);
+        return (async function() {
+            var binaryString = atob(base64Input);
+            var bytes = new Uint8Array(binaryString.length);
+            for (var i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            var result = pako.inflate(bytes);
+            var resultBinary = '';
+            for (var i = 0; i < result.length; i++) {
+                resultBinary += String.fromCharCode(result[i]);
+            }
+            return btoa(resultBinary);
+        })();
     })
 """)
 private external fun wasmPakoInflate(base64Input: String): String

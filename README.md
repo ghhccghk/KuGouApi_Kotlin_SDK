@@ -2,7 +2,8 @@
 
 
 ### 基于 Kotlin Multiplatform (KMP) 重新实现的酷狗音乐 API SDK。对齐 [MakcRe/KuGouMusicApi](https://github.com/MakcRe/KuGouMusicApi) 的 Node.js 实现，支持 Android、iOS、JVM、Web (Wasm/JS) 等多平台。
-### 使用了ChatGPT，Gemini，claude 等Ai模型辅助加速开发，可能会有错误
+---
+### 使用了ChatGPT，Gemini，Claude，XiaoMi Mimo 等 AI 模型辅助加速开发，可能会有错误
 ---
 
 ## 🚀 核心特性
@@ -84,6 +85,11 @@ val krcText = lyricResp.body["decodeContent"]
 - **Serialization**: [kotlinx.serialization](https://github.com/Kotlin/kotlinx.serialization)
 - **Byte/IO**: [Okio](https://square.github.io/okio/)
 - **UI (Example)**: Compose Multiplatform
+
+---
+## ⚠ 注意事项
+
+使用web开发请注意 CORS 限制，需要在服务器端设置代理或使用浏览器插件绕过。iOS 端需要配置 ATS 以允许非 HTTPS 请求。
 
 ---
 

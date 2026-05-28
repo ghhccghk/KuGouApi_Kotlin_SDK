@@ -26,10 +26,10 @@ expect object Crypto {
     fun aesDecrypt(ciphertextHex: String, key: String, iv: String): String
 
     /** Raw RSA encryption (no padding). Returns hex-encoded ciphertext. */
-    fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String
+    suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String
 
     /** RSA encryption with PKCS1-V1_5 padding. Returns hex-encoded ciphertext. */
-    fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String
+    suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String
 
     /** Encode bytes to Base64 string */
     fun encodeBase64(data: ByteArray): String

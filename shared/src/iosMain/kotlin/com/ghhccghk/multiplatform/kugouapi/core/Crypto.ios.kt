@@ -59,7 +59,7 @@ actual object Crypto {
         return unpadded.decodeToString()
     }
 
-    actual fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
+    actual suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String {
         val pemContent = extractPem(publicKeyPem)
         val keyBytes = decodeBase64(pemContent)
         val (modulus, exponent) = parseRsaPublicKey(keyBytes)
@@ -70,7 +70,7 @@ actual object Crypto {
         return resultBytes.joinToString("") { (it.toInt() and 0xFF).toString(16).padStart(2, '0') }
     }
 
-    actual fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
+    actual suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String {
         return rsaEncrypt(data, publicKeyPem)
     }
 
