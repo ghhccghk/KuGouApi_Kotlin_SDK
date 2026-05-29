@@ -10,7 +10,7 @@ import kotlinx.serialization.json.*
 class VideoApi(private val executor: RequestExecutor) {
 
     /**
-     * 获取歌曲对应的 MV 信息
+     * 获取歌曲对应的直播 MV 信息
      *
      * @param albumAudioId 多个用逗号分隔
      */

@@ -29,13 +29,17 @@ class CookieJar(private val config: KuGouConfig) {
     }
 
     fun getToken(): String = _cookies["token"] ?: ""
-        fun getUserid(): String = _cookies["userid"] ?: "0"
+    fun getUserid(): String = _cookies["userid"] ?: "0"
     fun getDfid(): String = _cookies["dfid"] ?: "-"
     fun getMid(): String = _cookies["KUGOU_API_MID"] ?: ""
     fun getGuid(): String = _cookies["KUGOU_API_GUID"] ?: ""
     fun getDev(): String = _cookies["KUGOU_API_DEV"] ?: ""
     fun getVipType(): String = _cookies["vip_type"] ?: "0"
     fun getVipToken(): String = _cookies["vip_token"] ?: ""
+
+    fun setToken(t: String) { _cookies["token"] = t }
+    fun setUserid(id: Long) { _cookies["userid"] = id.toString() }
+
 
     fun isLoggedIn(): Boolean = getToken().isNotEmpty() && getUserid() != "0"
 
