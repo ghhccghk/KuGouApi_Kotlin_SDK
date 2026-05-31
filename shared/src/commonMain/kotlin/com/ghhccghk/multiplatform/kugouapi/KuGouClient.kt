@@ -37,4 +37,5 @@ class KuGouClient(
     val video = VideoApi(executor)
     val radio = RadioApi(executor)
     val recommend = RecommendApi(executor)
+    val sheet = SheetApi(executor)
 }

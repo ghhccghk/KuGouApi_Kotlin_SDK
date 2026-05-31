@@ -166,4 +166,20 @@ class MiscApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 获取服务器时间
+     * 对齐 module/server_now.js
+     */
+    suspend fun getServerTime(): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/v1/server_now",
+                method = HttpMethod.POST,
+                params = mapOf("plat" to 3),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "usercenter.kugou.com")
+            )
+        )
+    }
 }

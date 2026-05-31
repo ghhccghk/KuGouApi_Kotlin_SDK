@@ -3,15 +3,23 @@
 package com.ghhccghk.multiplatform.kugouapi
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
@@ -33,7 +41,7 @@ fun App(
             val formatted = try {
                 if (content is JsonObject) jsonFormatter.encodeToString(content)
                 else content.toString()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 content.toString()
             }
             logText = "[$tag]\n$formatted\n\n------------------\n$logText"
@@ -43,11 +51,13 @@ fun App(
             modifier = Modifier.fillMaxSize().padding(paddingValues),
             color = MaterialTheme.colorScheme.background
         ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text("酷狗 SDK 综合测试", style = MaterialTheme.typography.headlineMedium)
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)) {
+                Text(
+                    "酷狗 SDK 测试",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
 
-                // 全局输入区域
                 val inputs = remember { mutableStateMapOf<String, String>() }
                 fun get(key: String, default: String = "") = inputs[key] ?: default
 
@@ -57,838 +67,474 @@ fun App(
                         .weight(1f)
                         .verticalScroll(rememberScrollState())
                 ) {
-                    // ============ 全局凭证输入 ============
-                    TestSection("全局凭证") {
-                        TestButton("注册设备 (dfid)") {
-                            val resp = client.auth.registerDev()
-                            addLog("Auth:registerDev", resp.body)
-                        }
+                    // ============ 全局凭证 ============
+                    SectionHeader("全局凭证")
+                    ActionRow {
+                        Input("userid", get("userid"), { inputs["userid"] = it; client.cookieJar.setUserid(it.toLongOrNull() ?: 0L) }, "用户ID")
+                        Input("token", get("token"), { inputs["token"] = it; client.cookieJar.setToken(it) }, "Token")
+                        Btn("注册设备") { addLog("Auth:registerDev", client.auth.registerDev().body) }
                     }
-                    InputRow("userid", get("userid"),
-                        {
-                        inputs["userid"] = it
-                        client.cookieJar.setUserid(it.toLong())
-                                                      }, "用户ID (选填)")
-                    InputRow("token", get("token"), {
-                        inputs["token"] = it
-                        client.cookieJar.setToken(it)
-                                                    }, "Token (选填)")
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 身份认证 ============
-                    TestSection("身份认证 - Auth") {
-                        TestButton("注册设备 (dfid)") {
-                            val resp = client.auth.registerDev()
-                            addLog("Auth:registerDev", resp.body)
-                        }
-                        TestButton("登录设备列表") {
-                            val resp = client.auth.getLoginDevices()
-                            addLog("Auth:getLoginDevices", resp.body)
-                        }
-                        TestButton("创建微信登录") {
-                            val resp = client.auth.createWxLogin()
-                            addLog("Auth:createWxLogin", resp.body)
-                        }
+                    SectionHeader("身份认证")
+                    ActionRow {
+                        Btn("登录设备列表") { addLog("Auth:getLoginDevices", client.auth.getLoginDevices().body) }
+                        Btn("创建微信登录") { addLog("Auth:createWxLogin", client.auth.createWxLogin().body) }
                     }
-                    InputRow("sendCaptcha_phone", get("sendCaptcha_phone"), { inputs["sendCaptcha_phone"] = it }, "手机号")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("发送验证码") {
-                            val resp = client.auth.sendCaptcha(get("sendCaptcha_phone"))
-                            addLog("Auth:sendCaptcha", resp.body)
-                        }
+                    ActionRow {
+                        Input("sendCaptcha_phone", get("sendCaptcha_phone"), { inputs["sendCaptcha_phone"] = it }, "手机号")
+                        Btn("发送验证码") { addLog("Auth:sendCaptcha", client.auth.sendCaptcha(get("sendCaptcha_phone")).body) }
                     }
-
-                    InputRow("login_pwd_user", get("login_pwd_user"), { inputs["login_pwd_user"] = it }, "用户名")
-                    InputRow("login_pwd_pass", get("login_pwd_pass"), { inputs["login_pwd_pass"] = it }, "密码")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("密码登录") {
-                            val resp = client.auth.loginByPassword(get("login_pwd_user"), get("login_pwd_pass"))
-                            addLog("Auth:loginByPassword", resp.body)
-                        }
+                    ActionRow {
+                        Input("login_pwd_user", get("login_pwd_user"), { inputs["login_pwd_user"] = it }, "用户名")
+                        Input("login_pwd_pass", get("login_pwd_pass"), { inputs["login_pwd_pass"] = it }, "密码")
+                        Btn("密码登录") { addLog("Auth:loginByPassword", client.auth.loginByPassword(get("login_pwd_user"), get("login_pwd_pass")).body) }
                     }
-
-                    InputRow("login_code_phone", get("login_code_phone"), { inputs["login_code_phone"] = it }, "手机号")
-                    InputRow("login_code_code", get("login_code_code"), { inputs["login_code_code"] = it }, "验证码")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("手机验证码登录") {
-                            val resp = client.auth.loginByPhoneCode(get("login_code_phone"), get("login_code_code"))
-                            addLog("Auth:loginByPhoneCode", resp.body)
-                        }
+                    ActionRow {
+                        Input("login_code_phone", get("login_code_phone"), { inputs["login_code_phone"] = it }, "手机号")
+                        Input("login_code_code", get("login_code_code"), { inputs["login_code_code"] = it }, "验证码")
+                        Btn("验证码登录") { addLog("Auth:loginByPhoneCode", client.auth.loginByPhoneCode(get("login_code_phone"), get("login_code_code")).body) }
                     }
-
-                    InputRow("login_token_token", get("login_token_token"), { inputs["login_token_token"] = it }, "Token")
-                    InputRow("login_token_userid", get("login_token_userid"), { inputs["login_token_userid"] = it }, "Userid")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("Token登录") {
-                            val resp = client.auth.loginByToken(get("login_token_token"), get("login_token_userid"))
-                            addLog("Auth:loginByToken", resp.body)
-                        }
+                    ActionRow {
+                        Input("login_token_token", get("login_token_token"), { inputs["login_token_token"] = it }, "Token")
+                        Input("login_token_userid", get("login_token_userid"), { inputs["login_token_userid"] = it }, "Userid")
+                        Btn("Token登录") { addLog("Auth:loginByToken", client.auth.loginByToken(get("login_token_token"), get("login_token_userid")).body) }
+                    }
+                    ActionRow {
+                        Input("qrkey_keyword", get("qrkey_keyword"), { inputs["qrkey_keyword"] = it }, "关键词", "qrcode")
+                        Btn("创建扫码Key") { addLog("Auth:createQrKey", client.auth.createQrKey(get("qrkey_keyword", "qrcode")).body) }
+                    }
+                    ActionRow {
+                        Input("qrcheck_key", get("qrcheck_key"), { inputs["qrcheck_key"] = it }, "Key")
+                        Btn("检查扫码") { addLog("Auth:checkQrCode", client.auth.checkQrCode(get("qrcheck_key")).body) }
+                    }
+                    ActionRow {
+                        Input("wxcheck_uuid", get("wxcheck_uuid"), { inputs["wxcheck_uuid"] = it }, "UUID")
+                        Btn("检查微信登录") { addLog("Auth:checkWxLogin", client.auth.checkWxLogin(get("wxcheck_uuid")).body) }
+                    }
+                    ActionRow {
+                        Input("kick_mid", get("kick_mid"), { inputs["kick_mid"] = it }, "目标MID")
+                        Btn("踢出设备") { addLog("Auth:kickDevice", client.auth.kickDevice(get("kick_mid")).body) }
+                    }
+                    ActionRow {
+                        Input("openplat_code", get("openplat_code"), { inputs["openplat_code"] = it }, "微信Code")
+                        Btn("开放平台登录") { addLog("Auth:loginByOpenPlat", client.auth.loginByOpenPlat(get("openplat_code")).body) }
                     }
 
-                    InputRow("qrkey_keyword", get("qrkey_keyword"), { inputs["qrkey_keyword"] = it }, "关键词 (默认: qrcode)")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("创建扫码Key") {
-                            val resp = client.auth.createQrKey(get("qrkey_keyword", "qrcode"))
-                            addLog("Auth:createQrKey", resp.body)
-                        }
-                    }
-
-                    InputRow("qrcheck_key", get("qrcheck_key"), { inputs["qrcheck_key"] = it }, "Key")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("检查扫码状态") {
-                            val resp = client.auth.checkQrCode(get("qrcheck_key"))
-                            addLog("Auth:checkQrCode", resp.body)
-                        }
-                    }
-
-                    InputRow("wxcheck_uuid", get("wxcheck_uuid"), { inputs["wxcheck_uuid"] = it }, "UUID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("检查微信登录") {
-                            val resp = client.auth.checkWxLogin(get("wxcheck_uuid"))
-                            addLog("Auth:checkWxLogin", resp.body)
-                        }
-                    }
-
-                    InputRow("kick_mid", get("kick_mid"), { inputs["kick_mid"] = it }, "目标设备MID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("踢出设备") {
-                            val resp = client.auth.kickDevice(get("kick_mid"))
-                            addLog("Auth:kickDevice", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 搜索 ============
-                    TestSection("搜索 - Search") {
-                        TestButton("热搜榜") {
-                            val resp = client.search.searchHot()
-                            addLog("Search:searchHot", resp.body)
-                        }
-                        TestButton("搜索默认词") {
-                            val resp = client.search.searchDefault()
-                            addLog("Search:searchDefault", resp.body)
-                        }
+                    SectionHeader("搜索")
+                    ActionRow {
+                        Btn("热搜榜") { addLog("Search:searchHot", client.search.searchHot().body) }
+                        Btn("搜索默认词") { addLog("Search:searchDefault", client.search.searchDefault().body) }
                     }
-                    InputRow("search_keyword", get("search_keyword", "周杰伦"), { inputs["search_keyword"] = it }, "搜索关键词")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("搜索") {
-                            val resp = client.search.search(get("search_keyword", "周杰伦"))
-                            addLog("Search:search", resp.body)
-                        }
-                        TestButton("混合搜索") {
-                            val resp = client.search.searchMixed(get("search_keyword", "周杰伦"))
-                            addLog("Search:searchMixed", resp.body)
-                        }
-                        TestButton("搜索联想") {
-                            val resp = client.search.searchSuggest(get("search_keyword", "周杰伦"))
-                            addLog("Search:searchSuggest", resp.body)
-                        }
-                        TestButton("复杂搜索") {
-                            val resp = client.search.searchComplex(get("search_keyword", "周杰伦"))
-                            addLog("Search:searchComplex", resp.body)
-                        }
-                        TestButton("歌词搜索") {
-                            val resp = client.search.searchLyric(get("search_keyword", "周杰伦"))
-                            addLog("Search:searchLyric", resp.body)
-                        }
+                    ActionRow {
+                        Input("search_keyword", get("search_keyword", "周杰伦"), { inputs["search_keyword"] = it }, "关键词", "周杰伦")
+                        Btn("搜索") { addLog("Search:search", client.search.search(get("search_keyword", "周杰伦")).body) }
+                        Btn("混合") { addLog("Search:searchMixed", client.search.searchMixed(get("search_keyword", "周杰伦")).body) }
+                        Btn("联想") { addLog("Search:searchSuggest", client.search.searchSuggest(get("search_keyword", "周杰伦")).body) }
+                        Btn("复杂") { addLog("Search:searchComplex", client.search.searchComplex(get("search_keyword", "周杰伦")).body) }
+                        Btn("歌词") { addLog("Search:searchLyric", client.search.searchLyric(get("search_keyword", "周杰伦")).body) }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 歌曲 ============
-                    TestSection("歌曲 - Song") {
-                        TestButton("默认歌曲信息") {
-                            val resp = client.song.getAudioInfo("E6B6478980F16C6A97491C781A327E7A")
-                            addLog("Song:getAudioInfo", resp.body)
-                        }
+                    SectionHeader("歌曲")
+                    ActionRow {
+                        Input("song_hash", get("song_hash"), { inputs["song_hash"] = it }, "Hash")
+                        Btn("歌曲信息") { addLog("Song:getAudioInfo", client.song.getAudioInfo(get("song_hash", "E6B6478980F16C6A97491C781A327E7A")).body) }
                     }
-                    InputRow("song_hash", get("song_hash"), { inputs["song_hash"] = it }, "歌曲Hash (多个逗号分隔)")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲信息") {
-                            val resp = client.song.getAudioInfo(get("song_hash", "E6B6478980F16C6A97491C781A327E7A"))
-                            addLog("Song:getAudioInfo", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_lyric_id", get("song_lyric_id"), { inputs["song_lyric_id"] = it }, "歌词ID")
+                        Input("song_lyric_key", get("song_lyric_key"), { inputs["song_lyric_key"] = it }, "AccessKey")
+                        Btn("获取歌词") { addLog("Song:getLyric", client.song.getLyric(get("song_lyric_id", "191543369"), get("song_lyric_key", "1AE02A6C2E7596187C717727708422CB"), decode = true).body) }
                     }
-
-                    InputRow("song_lyric_id", get("song_lyric_id"), { inputs["song_lyric_id"] = it }, "歌词ID")
-                    InputRow("song_lyric_key", get("song_lyric_key"), { inputs["song_lyric_key"] = it }, "AccessKey")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("获取歌词") {
-                            val resp = client.song.getLyric(get("song_lyric_id", "191543369"), get("song_lyric_key", "1AE02A6C2E7596187C717727708422CB"), decode = true)
-                            addLog("Song:getLyric", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_related_id", get("song_related_id"), { inputs["song_related_id"] = it }, "AlbumAudioId")
+                        Btn("相关歌曲") { addLog("Song:getRelatedAudio", client.song.getRelatedAudio(get("song_related_id").toLongOrNull() ?: 0L).body) }
                     }
-
-                    InputRow("song_related_id", get("song_related_id"), { inputs["song_related_id"] = it }, "AlbumAudioId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("相关歌曲") {
-                            val resp = client.song.getRelatedAudio(get("song_related_id").toLongOrNull() ?: 0L)
-                            addLog("Song:getRelatedAudio", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_match_hash", get("song_match_hash"), { inputs["song_match_hash"] = it }, "Hash")
+                        Input("song_match_file", get("song_match_file"), { inputs["song_match_file"] = it }, "文件名")
+                        Btn("匹配伴奏") { addLog("Song:matchAccompany", client.song.matchAccompany(get("song_match_hash"), get("song_match_file")).body) }
                     }
-
-                    InputRow("song_match_hash", get("song_match_hash"), { inputs["song_match_hash"] = it }, "Hash")
-                    InputRow("song_match_file", get("song_match_file"), { inputs["song_match_file"] = it }, "文件名")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("匹配伴奏") {
-                            val resp = client.song.matchAccompany(get("song_match_hash"), get("song_match_file"))
-                            addLog("Song:matchAccompany", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_ktv_id", get("song_ktv_id"), { inputs["song_ktv_id"] = it }, "SongId")
+                        Input("song_ktv_singer", get("song_ktv_singer"), { inputs["song_ktv_singer"] = it }, "歌手")
+                        Input("song_ktv_hash", get("song_ktv_hash"), { inputs["song_ktv_hash"] = it }, "Hash")
+                        Btn("KTV总数") { addLog("Song:getKtvTotal", client.song.getKtvTotal(get("song_ktv_id").toLongOrNull() ?: 0L, get("song_ktv_singer"), get("song_ktv_hash")).body) }
                     }
-
-                    InputRow("song_ktv_id", get("song_ktv_id"), { inputs["song_ktv_id"] = it }, "SongId")
-                    InputRow("song_ktv_singer", get("song_ktv_singer"), { inputs["song_ktv_singer"] = it }, "歌手名")
-                    InputRow("song_ktv_hash", get("song_ktv_hash"), { inputs["song_ktv_hash"] = it }, "Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("KTV作品总数") {
-                            val resp = client.song.getKtvTotal(get("song_ktv_id").toLongOrNull() ?: 0L, get("song_ktv_singer"), get("song_ktv_hash"))
-                            addLog("Song:getKtvTotal", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_priv_hash", get("song_priv_hash"), { inputs["song_priv_hash"] = it }, "Hash")
+                        Input("song_priv_album", get("song_priv_album"), { inputs["song_priv_album"] = it }, "AlbumId")
+                        Btn("权限(Lite)") { addLog("Song:getPrivilegeLite", client.song.getPrivilegeLite(get("song_priv_hash"), get("song_priv_album")).body) }
                     }
-
-                    InputRow("song_priv_hash", get("song_priv_hash"), { inputs["song_priv_hash"] = it }, "Hash")
-                    InputRow("song_priv_album", get("song_priv_album"), { inputs["song_priv_album"] = it }, "AlbumId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲权限(Lite)") {
-                            val resp = client.song.getPrivilegeLite(get("song_priv_hash"), get("song_priv_album"))
-                            addLog("Song:getPrivilegeLite", resp.body)
-                        }
+                    ActionRow {
+                        Input("song_krm_id", get("song_krm_id"), { inputs["song_krm_id"] = it }, "AlbumAudioId")
+                        Btn("KRM元数据") { addLog("Song:getKrmAudio", client.song.getKrmAudio(get("song_krm_id")).body) }
+                    }
+                    ActionRow {
+                        Input("song_url_hash", get("song_url_hash"), { inputs["song_url_hash"] = it }, "Hash")
+                        Input("song_url_album", get("song_url_album"), { inputs["song_url_album"] = it }, "AlbumId")
+                        Input("song_url_audioid", get("song_url_audioid"), { inputs["song_url_audioid"] = it }, "AudioId")
+                        Btn("v5") { addLog("Song:getSongUrl", client.song.getSongUrl(get("song_url_hash"), get("song_url_album").toLongOrNull() ?: 0L, get("song_url_audioid").toLongOrNull() ?: 0L).body) }
+                        Btn("v6") { addLog("Song:getSongUrlNew", client.song.getSongUrlNew(get("song_url_hash"), get("song_url_audioid").toLongOrNull() ?: 0L).body) }
+                    }
+                    ActionRow {
+                        Input("song_climax_hash", get("song_climax_hash"), { inputs["song_climax_hash"] = it }, "Hash")
+                        Btn("高潮部分") { addLog("Song:getSongClimax", client.song.getSongClimax(get("song_climax_hash")).body) }
+                    }
+                    ActionRow {
+                        Input("song_rankinfo_id", get("song_rankinfo_id"), { inputs["song_rankinfo_id"] = it }, "AudioId")
+                        Btn("成绩单") { addLog("Song:getSongRanking", client.song.getSongRanking(get("song_rankinfo_id").toLongOrNull() ?: 0L).body) }
+                        Btn("榜单过滤") { addLog("Song:getSongRankingFilter", client.song.getSongRankingFilter(get("song_rankinfo_id").toLongOrNull() ?: 0L).body) }
                     }
 
-                    InputRow("song_krm_id", get("song_krm_id"), { inputs["song_krm_id"] = it }, "AlbumAudioId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("KRM音频元数据") {
-                            val resp = client.song.getKrmAudio(get("song_krm_id"))
-                            addLog("Song:getKrmAudio", resp.body)
-                        }
-                    }
-
-                    InputRow("song_url_hash", get("song_url_hash"), { inputs["song_url_hash"] = it }, "歌曲Hash")
-                    InputRow("song_url_album", get("song_url_album"), { inputs["song_url_album"] = it }, "AlbumId")
-                    InputRow("song_url_audioid", get("song_url_audioid"), { inputs["song_url_audioid"] = it }, "AlbumAudioId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲播放链接 (v5)") {
-                            val resp = client.song.getSongUrl(
-                                get("song_url_hash"),
-                                get("song_url_album").toLongOrNull() ?: 0L,
-                                get("song_url_audioid").toLongOrNull() ?: 0L
-                            )
-                            addLog("Song:getSongUrl", resp.body)
-                        }
-                        TestButton("歌曲播放链接 (v6)") {
-                            val resp = client.song.getSongUrlNew(
-                                get("song_url_hash"),
-                                get("song_url_audioid").toLongOrNull() ?: 0L
-                            )
-                            addLog("Song:getSongUrlNew", resp.body)
-                        }
-                    }
-
-                    InputRow("song_climax_hash", get("song_climax_hash"), { inputs["song_climax_hash"] = it }, "Hash (多个逗号分隔)")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲高潮部分") {
-                            val resp = client.song.getSongClimax(get("song_climax_hash"))
-                            addLog("Song:getSongClimax", resp.body)
-                        }
-                    }
-
-                    InputRow("song_rankinfo_id", get("song_rankinfo_id"), { inputs["song_rankinfo_id"] = it }, "AlbumAudioId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲成绩单") {
-                            val resp = client.song.getSongRanking(get("song_rankinfo_id").toLongOrNull() ?: 0L)
-                            addLog("Song:getSongRanking", resp.body)
-                        }
-                        TestButton("歌曲榜单过滤") {
-                            val resp = client.song.getSongRankingFilter(get("song_rankinfo_id").toLongOrNull() ?: 0L)
-                            addLog("Song:getSongRankingFilter", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 专辑 ============
-                    TestSection("专辑 - Album") {
-                        TestButton("默认专辑详情") {
-                            val resp = client.album.getAlbumDetail("1064292")
-                            addLog("Album:getAlbumDetail", resp.body)
-                        }
-                        TestButton("专辑商店") {
-                            val resp = client.album.getAlbumShop()
-                            addLog("Album:getAlbumShop", resp.body)
-                        }
+                    SectionHeader("专辑")
+                    ActionRow {
+                        Input("album_detail_id", get("album_detail_id"), { inputs["album_detail_id"] = it }, "专辑ID", "1064292")
+                        Btn("详情") { addLog("Album:getAlbumDetail", client.album.getAlbumDetail(get("album_detail_id", "1064292")).body) }
+                        Btn("商店") { addLog("Album:getAlbumShop", client.album.getAlbumShop().body) }
                     }
-                    InputRow("album_detail_id", get("album_detail_id"), { inputs["album_detail_id"] = it }, "专辑ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("专辑详情") {
-                            val resp = client.album.getAlbumDetail(get("album_detail_id", "1064292"))
-                            addLog("Album:getAlbumDetail", resp.body)
-                        }
+                    ActionRow {
+                        Input("album_meta_id", get("album_meta_id"), { inputs["album_meta_id"] = it }, "专辑ID")
+                        Input("album_meta_lang", get("album_meta_lang"), { inputs["album_meta_lang"] = it }, "语言", "zh-CN")
+                        Btn("元数据") { addLog("Album:getAlbumMetadata", client.album.getAlbumMetadata(get("album_meta_id"), get("album_meta_lang", "zh-CN")).body) }
+                    }
+                    ActionRow {
+                        Input("album_songs_id", get("album_songs_id"), { inputs["album_songs_id"] = it }, "专辑ID")
+                        Btn("歌曲列表") { addLog("Album:getAlbumSongs", client.album.getAlbumSongs(get("album_songs_id")).body) }
                     }
 
-                    InputRow("album_meta_id", get("album_meta_id"), { inputs["album_meta_id"] = it }, "专辑ID")
-                    InputRow("album_meta_lang", get("album_meta_lang"), { inputs["album_meta_lang"] = it }, "语言 (默认zh-CN)")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("专辑元数据") {
-                            val resp = client.album.getAlbumMetadata(get("album_meta_id"), get("album_meta_lang", "zh-CN"))
-                            addLog("Album:getAlbumMetadata", resp.body)
-                        }
-                    }
-
-                    InputRow("album_songs_id", get("album_songs_id"), { inputs["album_songs_id"] = it }, "专辑ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("专辑歌曲列表") {
-                            val resp = client.album.getAlbumSongs(get("album_songs_id"))
-                            addLog("Album:getAlbumSongs", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 歌手 ============
-                    TestSection("歌手 - Artist") {
-                        TestButton("默认歌手详情") {
-                            val resp = client.artist.getDetail("3066")
-                            addLog("Artist:getDetail", resp.body)
-                        }
+                    SectionHeader("歌手")
+                    ActionRow {
+                        Input("artist_detail_id", get("artist_detail_id"), { inputs["artist_detail_id"] = it }, "歌手ID", "3066")
+                        Btn("详情") { addLog("Artist:getDetail", client.artist.getDetail(get("artist_detail_id", "3066")).body) }
+                        Btn("列表") { addLog("Artist:getLists", client.artist.getLists().body) }
                     }
-                    InputRow("artist_detail_id", get("artist_detail_id"), { inputs["artist_detail_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌手详情") {
-                            val resp = client.artist.getDetail(get("artist_detail_id", "3066"))
-                            addLog("Artist:getDetail", resp.body)
-                        }
+                    ActionRow {
+                        Input("artist_albums_id", get("artist_albums_id"), { inputs["artist_albums_id"] = it }, "歌手ID", "3066")
+                        Btn("专辑") { addLog("Artist:getAlbums", client.artist.getAlbums(get("artist_albums_id", "3066")).body) }
                     }
-
-                    InputRow("artist_albums_id", get("artist_albums_id"), { inputs["artist_albums_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌手专辑") {
-                            val resp = client.artist.getAlbums(get("artist_albums_id", "3066"))
-                            addLog("Artist:getAlbums", resp.body)
-                        }
+                    ActionRow {
+                        Input("artist_audios_id", get("artist_audios_id"), { inputs["artist_audios_id"] = it }, "歌手ID", "3066")
+                        Btn("歌曲") { addLog("Artist:getAudios", client.artist.getAudios(get("artist_audios_id", "3066")).body) }
                     }
-
-                    InputRow("artist_audios_id", get("artist_audios_id"), { inputs["artist_audios_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌手歌曲") {
-                            val resp = client.artist.getAudios(get("artist_audios_id", "3066"))
-                            addLog("Artist:getAudios", resp.body)
-                        }
+                    ActionRow {
+                        Input("artist_videos_id", get("artist_videos_id"), { inputs["artist_videos_id"] = it }, "歌手ID", "3066")
+                        Btn("视频") { addLog("Artist:getVideos", client.artist.getVideos(get("artist_videos_id", "3066")).body) }
                     }
-
-                    InputRow("artist_videos_id", get("artist_videos_id"), { inputs["artist_videos_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌手视频") {
-                            val resp = client.artist.getVideos(get("artist_videos_id", "3066"))
-                            addLog("Artist:getVideos", resp.body)
-                        }
+                    ActionRow {
+                        Input("artist_follow_id", get("artist_follow_id"), { inputs["artist_follow_id"] = it }, "歌手ID")
+                        Btn("关注") { addLog("Artist:follow", client.artist.follow(get("artist_follow_id")).body) }
+                        Btn("取消关注") { addLog("Artist:unfollow", client.artist.unfollow(get("artist_follow_id")).body) }
+                        Btn("新歌") { addLog("Artist:getFollowNewSongs", client.artist.getFollowNewSongs(0L).body) }
+                    }
+                    ActionRow {
+                        Input("artist_honour_id", get("artist_honour_id"), { inputs["artist_honour_id"] = it }, "歌手ID", "3066")
+                        Btn("荣誉") { addLog("Artist:getHonour", client.artist.getHonour(get("artist_honour_id", "3066")).body) }
                     }
 
-                    TestButton("歌手列表") {
-                        val resp = client.artist.getLists()
-                        addLog("Artist:getLists", resp.body)
-                    }
-
-                    InputRow("artist_follow_id", get("artist_follow_id"), { inputs["artist_follow_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("关注歌手") {
-                            val resp = client.artist.follow(get("artist_follow_id"))
-                            addLog("Artist:follow", resp.body)
-                        }
-                        TestButton("取消关注") {
-                            val resp = client.artist.unfollow(get("artist_follow_id"))
-                            addLog("Artist:unfollow", resp.body)
-                        }
-                    }
-
-                    TestButton("关注歌手新歌") {
-                        val resp = client.artist.getFollowNewSongs(0L)
-                        addLog("Artist:getFollowNewSongs", resp.body)
-                    }
-
-                    InputRow("artist_honour_id", get("artist_honour_id"), { inputs["artist_honour_id"] = it }, "歌手ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌手荣誉") {
-                            val resp = client.artist.getHonour(get("artist_honour_id", "3066"))
-                            addLog("Artist:getHonour", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 歌单 ============
-                    TestSection("歌单 - Playlist") {
-                        TestButton("默认歌单详情") {
-                            val resp = client.playlist.getPlaylistDetail("552406")
-                            addLog("Playlist:getDetail", resp.body)
-                        }
-                        TestButton("歌单标签") {
-                            val resp = client.playlist.getPlaylistTags()
-                            addLog("Playlist:getTags", resp.body)
-                        }
-                        TestButton("精选歌单") {
-                            val resp = client.playlist.getEffectPlaylists()
-                            addLog("Playlist:getEffect", resp.body)
-                        }
+                    SectionHeader("歌单")
+                    ActionRow {
+                        Input("playlist_detail_id", get("playlist_detail_id"), { inputs["playlist_detail_id"] = it }, "歌单ID", "552406")
+                        Btn("详情") { addLog("Playlist:getDetail", client.playlist.getPlaylistDetail(get("playlist_detail_id", "552406")).body) }
+                        Btn("标签") { addLog("Playlist:getTags", client.playlist.getPlaylistTags().body) }
+                        Btn("精选") { addLog("Playlist:getEffect", client.playlist.getEffectPlaylists().body) }
                     }
-                    InputRow("playlist_detail_id", get("playlist_detail_id"), { inputs["playlist_detail_id"] = it }, "歌单ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌单详情") {
-                            val resp = client.playlist.getPlaylistDetail(get("playlist_detail_id", "552406"))
-                            addLog("Playlist:getDetail", resp.body)
-                        }
+                    ActionRow {
+                        Input("playlist_similar_id", get("playlist_similar_id"), { inputs["playlist_similar_id"] = it }, "歌单ID")
+                        Btn("相似") { addLog("Playlist:getSimilar", client.playlist.getSimilarPlaylists(get("playlist_similar_id", "552406")).body) }
                     }
-
-                    InputRow("playlist_similar_id", get("playlist_similar_id"), { inputs["playlist_similar_id"] = it }, "歌单ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("相似歌单") {
-                            val resp = client.playlist.getSimilarPlaylists(get("playlist_similar_id", "552406"))
-                            addLog("Playlist:getSimilar", resp.body)
-                        }
+                    ActionRow {
+                        Input("playlist_tracks_id", get("playlist_tracks_id"), { inputs["playlist_tracks_id"] = it }, "歌单ID")
+                        Btn("歌曲") { addLog("Playlist:getTracks", client.playlist.getPlaylistTracks(get("playlist_tracks_id", "552406")).body) }
+                        Btn("歌曲(New)") { addLog("Playlist:getTracksNew", client.playlist.getPlaylistTracksNew(get("playlist_tracks_id", "552406")).body) }
                     }
-
-                    InputRow("playlist_tracks_id", get("playlist_tracks_id"), { inputs["playlist_tracks_id"] = it }, "歌单ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌单歌曲") {
-                            val resp = client.playlist.getPlaylistTracks(get("playlist_tracks_id", "552406"))
-                            addLog("Playlist:getTracks", resp.body)
-                        }
-                        TestButton("歌单歌曲(New)") {
-                            val resp = client.playlist.getPlaylistTracksNew(get("playlist_tracks_id", "552406"))
-                            addLog("Playlist:getTracksNew", resp.body)
-                        }
+                    ActionRow {
+                        Input("playlist_add_name", get("playlist_add_name"), { inputs["playlist_add_name"] = it }, "名称", "测试歌单")
+                        Input("playlist_add_uid", get("playlist_add_uid"), { inputs["playlist_add_uid"] = it }, "Userid")
+                        Input("playlist_add_listid", get("playlist_add_listid"), { inputs["playlist_add_listid"] = it }, "ListId")
+                        Btn("创建") { addLog("Playlist:addPlaylist", client.playlist.addPlaylist(get("playlist_add_name", "测试歌单"), get("playlist_add_uid"), get("playlist_add_listid")).body) }
+                    }
+                    ActionRow {
+                        Input("playlist_del_id", get("playlist_del_id"), { inputs["playlist_del_id"] = it }, "歌单ID")
+                        Btn("删除") { addLog("Playlist:deletePlaylist", client.playlist.deletePlaylist(get("playlist_del_id").toLongOrNull() ?: 0L).body) }
+                    }
+                    ActionRow {
+                        Input("playlist_addtracks_id", get("playlist_addtracks_id"), { inputs["playlist_addtracks_id"] = it }, "歌单ID")
+                        Input("playlist_addtracks_hash", get("playlist_addtracks_hash"), { inputs["playlist_addtracks_hash"] = it }, "Hash")
+                        Btn("添加歌曲") { addLog("Playlist:addTracks", client.playlist.addTracks(get("playlist_addtracks_id"), get("playlist_addtracks_hash")).body) }
+                    }
+                    ActionRow {
+                        Input("playlist_remtracks_id", get("playlist_remtracks_id"), { inputs["playlist_remtracks_id"] = it }, "歌单ID")
+                        Input("playlist_remtracks_hash", get("playlist_remtracks_hash"), { inputs["playlist_remtracks_hash"] = it }, "Hash")
+                        Btn("移除歌曲") { addLog("Playlist:removeTracks", client.playlist.removeTracks(get("playlist_remtracks_id"), get("playlist_remtracks_hash")).body) }
                     }
 
-                    InputRow("playlist_add_name", get("playlist_add_name"), { inputs["playlist_add_name"] = it }, "歌单名称")
-                    InputRow("playlist_add_uid", get("playlist_add_uid"), { inputs["playlist_add_uid"] = it }, "创建者Userid")
-                    InputRow("playlist_add_listid", get("playlist_add_listid"), { inputs["playlist_add_listid"] = it }, "歌单ListId")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("创建歌单") {
-                            val resp = client.playlist.addPlaylist(
-                                get("playlist_add_name", "测试歌单"),
-                                get("playlist_add_uid"),
-                                get("playlist_add_listid")
-                            )
-                            addLog("Playlist:addPlaylist", resp.body)
-                        }
-                    }
-
-                    InputRow("playlist_del_id", get("playlist_del_id"), { inputs["playlist_del_id"] = it }, "歌单ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("删除歌单") {
-                            val resp = client.playlist.deletePlaylist(get("playlist_del_id").toLongOrNull() ?: 0L)
-                            addLog("Playlist:deletePlaylist", resp.body)
-                        }
-                    }
-
-                    InputRow("playlist_addtracks_id", get("playlist_addtracks_id"), { inputs["playlist_addtracks_id"] = it }, "歌单ID")
-                    InputRow("playlist_addtracks_hash", get("playlist_addtracks_hash"), { inputs["playlist_addtracks_hash"] = it }, "歌曲Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("添加歌曲到歌单") {
-                            val resp = client.playlist.addTracks(get("playlist_addtracks_id"), get("playlist_addtracks_hash"))
-                            addLog("Playlist:addTracks", resp.body)
-                        }
-                    }
-
-                    InputRow("playlist_remtracks_id", get("playlist_remtracks_id"), { inputs["playlist_remtracks_id"] = it }, "歌单ID")
-                    InputRow("playlist_remtracks_hash", get("playlist_remtracks_hash"), { inputs["playlist_remtracks_hash"] = it }, "歌曲Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("从歌单移除歌曲") {
-                            val resp = client.playlist.removeTracks(get("playlist_remtracks_id"), get("playlist_remtracks_hash"))
-                            addLog("Playlist:removeTracks", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 评论 ============
-                    TestSection("评论 - Comment") {
-                        TestButton("默认歌曲评论") {
-                            val resp = client.comment.getMusicComments("34796338")
-                            addLog("Comment:getMusic", resp.body)
-                        }
+                    SectionHeader("评论")
+                    ActionRow {
+                        Input("comment_music_id", get("comment_music_id"), { inputs["comment_music_id"] = it }, "MixSongID", "34796338")
+                        Btn("歌曲评论") { addLog("Comment:getMusic", client.comment.getMusicComments(get("comment_music_id", "34796338")).body) }
                     }
-                    InputRow("comment_music_id", get("comment_music_id"), { inputs["comment_music_id"] = it }, "歌曲MixSongID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌曲评论") {
-                            val resp = client.comment.getMusicComments(get("comment_music_id", "34796338"))
-                            addLog("Comment:getMusic", resp.body)
-                        }
+                    ActionRow {
+                        Input("comment_album_id", get("comment_album_id"), { inputs["comment_album_id"] = it }, "专辑ID")
+                        Btn("专辑评论") { addLog("Comment:getAlbum", client.comment.getAlbumComments(get("comment_album_id")).body) }
                     }
-
-                    InputRow("comment_album_id", get("comment_album_id"), { inputs["comment_album_id"] = it }, "专辑ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("专辑评论") {
-                            val resp = client.comment.getAlbumComments(get("comment_album_id"))
-                            addLog("Comment:getAlbum", resp.body)
-                        }
+                    ActionRow {
+                        Input("comment_playlist_id", get("comment_playlist_id"), { inputs["comment_playlist_id"] = it }, "歌单ID")
+                        Btn("歌单评论") { addLog("Comment:getPlaylist", client.comment.getPlaylistComments(get("comment_playlist_id")).body) }
                     }
-
-                    InputRow("comment_playlist_id", get("comment_playlist_id"), { inputs["comment_playlist_id"] = it }, "歌单ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("歌单评论") {
-                            val resp = client.comment.getPlaylistComments(get("comment_playlist_id"))
-                            addLog("Comment:getPlaylist", resp.body)
-                        }
+                    ActionRow {
+                        Input("comment_count_id", get("comment_count_id"), { inputs["comment_count_id"] = it }, "资源ID")
+                        Input("comment_count_type", get("comment_count_type"), { inputs["comment_count_type"] = it }, "类型", "music")
+                        Btn("数量") { addLog("Comment:getCount", client.comment.getCommentCount(get("comment_count_id"), get("comment_count_type", "music")).body) }
+                    }
+                    ActionRow {
+                        Input("comment_floor_rid", get("comment_floor_rid"), { inputs["comment_floor_rid"] = it }, "评论ID")
+                        Input("comment_floor_eid", get("comment_floor_eid"), { inputs["comment_floor_eid"] = it }, "EId")
+                        Input("comment_floor_sid", get("comment_floor_sid"), { inputs["comment_floor_sid"] = it }, "MixSongID")
+                        Input("comment_floor_type", get("comment_floor_type"), { inputs["comment_floor_type"] = it }, "类型", "music")
+                        Btn("楼层") { addLog("Comment:getFloor", client.comment.getFloorComments(get("comment_floor_rid"), get("comment_floor_eid"), get("comment_floor_sid"), get("comment_floor_type", "music")).body) }
                     }
 
-                    InputRow("comment_count_id", get("comment_count_id"), { inputs["comment_count_id"] = it }, "资源ID")
-                    InputRow("comment_count_type", get("comment_count_type"), { inputs["comment_count_type"] = it }, "类型 (music/album/playlist)")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("评论数量") {
-                            val resp = client.comment.getCommentCount(get("comment_count_id"), get("comment_count_type", "music"))
-                            addLog("Comment:getCount", resp.body)
-                        }
-                    }
-
-                    InputRow("comment_floor_rid", get("comment_floor_rid"), { inputs["comment_floor_rid"] = it }, "评论ID")
-                    InputRow("comment_floor_eid", get("comment_floor_eid"), { inputs["comment_floor_eid"] = it }, "EId")
-                    InputRow("comment_floor_sid", get("comment_floor_sid"), { inputs["comment_floor_sid"] = it }, "MixSongID")
-                    InputRow("comment_floor_type", get("comment_floor_type"), { inputs["comment_floor_type"] = it }, "类型")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("楼层评论") {
-                            val resp = client.comment.getFloorComments(
-                                get("comment_floor_rid"), get("comment_floor_eid"), get("comment_floor_sid"),
-                                get("comment_floor_type", "music")
-                            )
-                            addLog("Comment:getFloor", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 排行榜 ============
-                    TestSection("排行榜 - Rank") {
-                        TestButton("排行列表") {
-                            val resp = client.rank.getList()
-                            addLog("Rank:getList", resp.body)
-                        }
-                        TestButton("排行榜推荐") {
-                            val resp = client.rank.getTop()
-                            addLog("Rank:getTop", resp.body)
-                        }
+                    SectionHeader("排行榜")
+                    ActionRow {
+                        Btn("排行列表") { addLog("Rank:getList", client.rank.getList().body) }
+                        Btn("排行榜推荐") { addLog("Rank:getTop", client.rank.getTop().body) }
                     }
-                    InputRow("rank_info_id", get("rank_info_id"), { inputs["rank_info_id"] = it }, "排行榜ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("排行榜详情") {
-                            val resp = client.rank.getInfo(get("rank_info_id"))
-                            addLog("Rank:getInfo", resp.body)
-                        }
+                    ActionRow {
+                        Input("rank_info_id", get("rank_info_id"), { inputs["rank_info_id"] = it }, "排行榜ID")
+                        Btn("详情") { addLog("Rank:getInfo", client.rank.getInfo(get("rank_info_id")).body) }
                     }
-
-                    InputRow("rank_audio_id", get("rank_audio_id"), { inputs["rank_audio_id"] = it }, "排行榜ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("排行榜音乐") {
-                            val resp = client.rank.getAudio(get("rank_audio_id"))
-                            addLog("Rank:getAudio", resp.body)
-                        }
+                    ActionRow {
+                        Input("rank_audio_id", get("rank_audio_id"), { inputs["rank_audio_id"] = it }, "排行榜ID")
+                        Btn("音乐") { addLog("Rank:getAudio", client.rank.getAudio(get("rank_audio_id")).body) }
+                    }
+                    ActionRow {
+                        Input("rank_vol_id", get("rank_vol_id"), { inputs["rank_vol_id"] = it }, "排行榜ID")
+                        Btn("往期") { addLog("Rank:getVol", client.rank.getVol(get("rank_vol_id")).body) }
                     }
 
-                    InputRow("rank_vol_id", get("rank_vol_id"), { inputs["rank_vol_id"] = it }, "排行榜ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("排行榜往期") {
-                            val resp = client.rank.getVol(get("rank_vol_id"))
-                            addLog("Rank:getVol", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 推荐 ============
-                    TestSection("推荐 - Recommend") {
-                        TestButton("每日推荐") {
-                            val resp = client.recommend.getDailyRecommend()
-                            addLog("Recommend:getDaily", resp.body)
-                        }
-                        TestButton("私人FM") {
-                            val resp = client.recommend.getPersonalFm()
-                            addLog("Recommend:getPersonalFm", resp.body)
-                        }
-                        TestButton("好友推荐") {
-                            val resp = client.recommend.getFriendRecommend()
-                            addLog("Recommend:getFriend", resp.body)
-                        }
+                    SectionHeader("推荐")
+                    ActionRow {
+                        Btn("每日推荐") { addLog("Recommend:getDaily", client.recommend.getDailyRecommend().body) }
+                        Btn("私人FM") { addLog("Recommend:getPersonalFm", client.recommend.getPersonalFm().body) }
+                        Btn("好友推荐") { addLog("Recommend:getFriend", client.recommend.getFriendRecommend().body) }
+                    }
+                    ActionRow {
+                        Input("rec_ai_id", get("rec_ai_id"), { inputs["rec_ai_id"] = it }, "专辑ID", "1064292")
+                        Btn("AI推荐") { addLog("Recommend:getAi", client.recommend.getAiRecommend(get("rec_ai_id", "1064292")).body) }
+                    }
+                    ActionRow {
+                        Input("rec_style_scene", get("rec_style_scene"), { inputs["rec_style_scene"] = it }, "场景ID", "0")
+                        Btn("风格推荐") { addLog("Recommend:getStyle", client.recommend.getStyleRecommend(get("rec_style_scene", "0")).body) }
+                    }
+                    ActionRow {
+                        Input("rec_songs_id", get("rec_songs_id"), { inputs["rec_songs_id"] = it }, "Hash")
+                        Btn("推荐歌曲") { addLog("Recommend:getSongs", client.recommend.getRecommendSongs(get("rec_songs_id")).body) }
                     }
 
-                    InputRow("rec_ai_id", get("rec_ai_id"), { inputs["rec_ai_id"] = it }, "专辑ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("AI推荐") {
-                            val resp = client.recommend.getAiRecommend(get("rec_ai_id", "1064292"))
-                            addLog("Recommend:getAi", resp.body)
-                        }
-                    }
-
-                    InputRow("rec_style_scene", get("rec_style_scene"), { inputs["rec_style_scene"] = it }, "场景ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("风格推荐") {
-                            val resp = client.recommend.getStyleRecommend(get("rec_style_scene", "0"))
-                            addLog("Recommend:getStyle", resp.body)
-                        }
-                    }
-
-                    InputRow("rec_songs_id", get("rec_songs_id"), { inputs["rec_songs_id"] = it }, "歌曲Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("推荐歌曲") {
-                            val resp = client.recommend.getRecommendSongs(get("rec_songs_id"))
-                            addLog("Recommend:getSongs", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 用户 ============
-                    TestSection("用户 - User") {
-                        TestButton("最近收听") {
-                            val resp = client.user.getLatestSongsListen()
-                            addLog("User:getLatestSongs", resp.body)
-                        }
+                    SectionHeader("用户")
+                    ActionRow {
+                        Btn("最近收听") { addLog("User:getLatestSongs", client.user.getLatestSongsListen().body) }
                     }
-                    InputRow("user_fav_id", get("user_fav_id"), { inputs["user_fav_id"] = it }, "用户ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("收藏数量") {
-                            val resp = client.user.getFavoriteCount(get("user_fav_id"))
-                            addLog("User:getFavCount", resp.body)
-                        }
+                    ActionRow {
+                        Input("user_fav_id", get("user_fav_id"), { inputs["user_fav_id"] = it }, "用户ID")
+                        Btn("收藏数量") { addLog("User:getFavCount", client.user.getFavoriteCount(get("user_fav_id")).body) }
                     }
-
-                    InputRow("user_play_hash", get("user_play_hash"), { inputs["user_play_hash"] = it }, "歌曲Hash")
-                    InputRow("user_play_songid", get("user_play_songid"), { inputs["user_play_songid"] = it }, "歌曲ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("上传播放记录") {
-                            val resp = client.user.uploadPlayHistory(
-                                get("user_play_hash").toLongOrNull() ?: 0L,
-                                get("user_play_songid").toLongOrNull() ?: 0L
-                            )
-                            addLog("User:uploadPlay", resp.body)
-                        }
+                    ActionRow {
+                        Input("user_play_hash", get("user_play_hash"), { inputs["user_play_hash"] = it }, "Hash")
+                        Input("user_play_songid", get("user_play_songid"), { inputs["user_play_songid"] = it }, "歌曲ID")
+                        Btn("上传播放记录") { addLog("User:uploadPlay", client.user.uploadPlayHistory(get("user_play_hash").toLongOrNull() ?: 0L, get("user_play_songid").toLongOrNull() ?: 0L).body) }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 电台 ============
-                    TestSection("电台 - Radio") {
-                        TestButton("电台分类") {
-                            val resp = client.radio.getFmClass()
-                            addLog("Radio:getFmClass", resp.body)
-                        }
-                        TestButton("电台推荐") {
-                            val resp = client.radio.getFmRecommend()
-                            addLog("Radio:getFmRecommend", resp.body)
-                        }
-                        TestButton("PC电台") {
-                            val resp = client.radio.getPcDiantai()
-                            addLog("Radio:getPcDiantai", resp.body)
-                        }
+                    SectionHeader("电台")
+                    ActionRow {
+                        Btn("分类") { addLog("Radio:getFmClass", client.radio.getFmClass().body) }
+                        Btn("推荐") { addLog("Radio:getFmRecommend", client.radio.getFmRecommend().body) }
+                        Btn("PC电台") { addLog("Radio:getPcDiantai", client.radio.getPcDiantai().body) }
                     }
-                    InputRow("radio_songs_id", get("radio_songs_id"), { inputs["radio_songs_id"] = it }, "电台ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("电台歌曲") {
-                            val resp = client.radio.getFmSongs(get("radio_songs_id"))
-                            addLog("Radio:getFmSongs", resp.body)
-                        }
+                    ActionRow {
+                        Input("radio_songs_id", get("radio_songs_id"), { inputs["radio_songs_id"] = it }, "电台ID")
+                        Btn("电台歌曲") { addLog("Radio:getFmSongs", client.radio.getFmSongs(get("radio_songs_id")).body) }
+                    }
+                    ActionRow {
+                        Input("radio_img_id", get("radio_img_id"), { inputs["radio_img_id"] = it }, "电台ID")
+                        Btn("电台图片") { addLog("Radio:getFmImage", client.radio.getFmImage(get("radio_img_id")).body) }
                     }
 
-                    InputRow("radio_img_id", get("radio_img_id"), { inputs["radio_img_id"] = it }, "电台ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("电台图片") {
-                            val resp = client.radio.getFmImage(get("radio_img_id"))
-                            addLog("Radio:getFmImage", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 场景音乐 ============
-                    TestSection("场景音乐 - SceneMusic") {
-                        TestButton("场景列表") {
-                            val resp = client.sceneMusic.getLists()
-                            addLog("Scene:getLists", resp.body)
-                        }
+                    SectionHeader("场景音乐")
+                    ActionRow {
+                        Btn("场景列表") { addLog("Scene:getLists", client.sceneMusic.getLists().body) }
                     }
-                    InputRow("scene_v2_id", get("scene_v2_id"), { inputs["scene_v2_id"] = it }, "场景ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("场景列表V2") {
-                            val resp = client.sceneMusic.getListsV2(get("scene_v2_id"))
-                            addLog("Scene:getListsV2", resp.body)
-                        }
+                    ActionRow {
+                        Input("scene_v2_id", get("scene_v2_id"), { inputs["scene_v2_id"] = it }, "场景ID")
+                        Btn("V2") { addLog("Scene:getListsV2", client.sceneMusic.getListsV2(get("scene_v2_id")).body) }
                     }
-
-                    InputRow("scene_module_id", get("scene_module_id"), { inputs["scene_module_id"] = it }, "模块ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("场景模块") {
-                            val resp = client.sceneMusic.getModule(get("scene_module_id"))
-                            addLog("Scene:getModule", resp.body)
-                        }
+                    ActionRow {
+                        Input("scene_module_id", get("scene_module_id"), { inputs["scene_module_id"] = it }, "模块ID")
+                        Btn("模块") { addLog("Scene:getModule", client.sceneMusic.getModule(get("scene_module_id")).body) }
                     }
-
-                    InputRow("scene_music_id", get("scene_music_id"), { inputs["scene_music_id"] = it }, "场景ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("场景音乐") {
-                            val resp = client.sceneMusic.getMusic(get("scene_music_id"))
-                            addLog("Scene:getMusic", resp.body)
-                        }
+                    ActionRow {
+                        Input("scene_music_id", get("scene_music_id"), { inputs["scene_music_id"] = it }, "场景ID")
+                        Btn("音乐") { addLog("Scene:getMusic", client.sceneMusic.getMusic(get("scene_music_id")).body) }
+                    }
+                    ActionRow {
+                        Input("scene_audio_id", get("scene_audio_id"), { inputs["scene_audio_id"] = it }, "场景ID")
+                        Input("scene_audio_module", get("scene_audio_module"), { inputs["scene_audio_module"] = it }, "模块ID")
+                        Input("scene_audio_tag", get("scene_audio_tag"), { inputs["scene_audio_tag"] = it }, "标签")
+                        Btn("音频列表") { addLog("Scene:getAudioList", client.sceneMusic.getAudioList(get("scene_audio_id"), get("scene_audio_module"), get("scene_audio_tag")).body) }
+                    }
+                    ActionRow {
+                        Input("scene_video_id", get("scene_video_id"), { inputs["scene_video_id"] = it }, "场景ID")
+                        Btn("视频") { addLog("Scene:getVideoList", client.sceneMusic.getVideoList(get("scene_video_id")).body) }
                     }
 
-                    InputRow("scene_audio_id", get("scene_audio_id"), { inputs["scene_audio_id"] = it }, "场景ID")
-                    InputRow("scene_audio_module", get("scene_audio_module"), { inputs["scene_audio_module"] = it }, "模块ID")
-                    InputRow("scene_audio_tag", get("scene_audio_tag"), { inputs["scene_audio_tag"] = it }, "标签")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("场景音频列表") {
-                            val resp = client.sceneMusic.getAudioList(get("scene_audio_id"), get("scene_audio_module"), get("scene_audio_tag"))
-                            addLog("Scene:getAudioList", resp.body)
-                        }
-                    }
-
-                    InputRow("scene_video_id", get("scene_video_id"), { inputs["scene_video_id"] = it }, "场景ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("场景视频") {
-                            val resp = client.sceneMusic.getVideoList(get("scene_video_id"))
-                            addLog("Scene:getVideoList", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 图片 ============
-                    TestSection("图片 - Image") {
-                        TestButton("默认图片") {
-                            val resp = client.image.getImages("E6B6478980F16C6A97491C781A327E7A")
-                            addLog("Image:getImages", resp.body)
-                        }
+                    SectionHeader("图片")
+                    ActionRow {
+                        Input("img_hash", get("img_hash"), { inputs["img_hash"] = it }, "Hash", "E6B6478980F16C6A97491C781A327E7A")
+                        Btn("获取图片") { addLog("Image:getImages", client.image.getImages(get("img_hash", "E6B6478980F16C6A97491C781A327E7A")).body) }
                     }
-                    InputRow("img_hash", get("img_hash"), { inputs["img_hash"] = it }, "Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("获取图片") {
-                            val resp = client.image.getImages(get("img_hash"))
-                            addLog("Image:getImages", resp.body)
-                        }
+                    ActionRow {
+                        Input("img_audio_hash", get("img_audio_hash"), { inputs["img_audio_hash"] = it }, "Hash")
+                        Btn("音频图片") { addLog("Image:getAudioImages", client.image.getAudioImages(get("img_audio_hash")).body) }
                     }
 
-                    InputRow("img_audio_hash", get("img_audio_hash"), { inputs["img_audio_hash"] = it }, "Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("音频图片") {
-                            val resp = client.image.getAudioImages(get("img_audio_hash"))
-                            addLog("Image:getAudioImages", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 视频 ============
-                    TestSection("视频 - Video") {
-                        // No default button, needs params
-                    }
-                    InputRow("video_album_audio_id", get("video_album_audio_id"), { inputs["video_album_audio_id"] = it }, "Hash")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("KRM音频MV") {
-                            val resp = client.video.getKmrAudioMv(get("video_album_audio_id"))
-                            addLog("Video:getKmrAudioMv", resp.body)
-                        }
+                    SectionHeader("视频")
+                    ActionRow {
+                        Input("video_album_audio_id", get("video_album_audio_id"), { inputs["video_album_audio_id"] = it }, "Hash")
+                        Btn("KRM音频MV") { addLog("Video:getKmrAudioMv", client.video.getKmrAudioMv(get("video_album_audio_id")).body) }
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 有声书 ============
-                    TestSection("有声书 - LongAudio") {
-                        TestButton("推荐排名") {
-                            val resp = client.longAudio.getRankRecommend()
-                            addLog("LongAudio:getRankRecommend", resp.body)
-                        }
-                        TestButton("VIP推荐") {
-                            val resp = client.longAudio.getVipRecommend()
-                            addLog("LongAudio:getVipRecommend", resp.body)
-                        }
-                        TestButton("每周推荐") {
-                            val resp = client.longAudio.getWeekRecommend()
-                            addLog("LongAudio:getWeekRecommend", resp.body)
-                        }
+                    SectionHeader("有声书")
+                    ActionRow {
+                        Btn("推荐排名") { addLog("LongAudio:getRankRecommend", client.longAudio.getRankRecommend().body) }
+                        Btn("VIP推荐") { addLog("LongAudio:getVipRecommend", client.longAudio.getVipRecommend().body) }
+                        Btn("每周推荐") { addLog("LongAudio:getWeekRecommend", client.longAudio.getWeekRecommend().body) }
+                        Btn("每日推荐") { addLog("LongAudio:getDailyRecommend", client.longAudio.getDailyRecommend().body) }
                     }
-                    InputRow("longaudio_album_id", get("longaudio_album_id"), { inputs["longaudio_album_id"] = it }, "有声书专辑ID")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("有声书专辑") {
-                            val resp = client.longAudio.getAlbumAudios(get("longaudio_album_id"))
-                            addLog("LongAudio:getAlbumAudios", resp.body)
-                        }
-                        TestButton("有声书详情") {
-                            val resp = client.longAudio.getAlbumDetail(get("longaudio_album_id"))
-                            addLog("LongAudio:getAlbumDetail", resp.body)
-                        }
+                    ActionRow {
+                        Input("longaudio_album_id", get("longaudio_album_id"), { inputs["longaudio_album_id"] = it }, "专辑ID")
+                        Btn("专辑") { addLog("LongAudio:getAlbumAudios", client.longAudio.getAlbumAudios(get("longaudio_album_id")).body) }
+                        Btn("详情") { addLog("LongAudio:getAlbumDetail", client.longAudio.getAlbumDetail(get("longaudio_album_id")).body) }
                     }
 
-                    TestButton("有声书每日推荐") {
-                        val resp = client.longAudio.getDailyRecommend()
-                        addLog("LongAudio:getDailyRecommend", resp.body)
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 杂项 ============
-                    TestSection("杂项 - Misc") {
-                        TestButton("刷刷Feed") {
-                            val resp = client.misc.brush()
-                            addLog("Misc:brush", resp.body)
-                        }
-                        TestButton("IP区域") {
-                            val resp = client.misc.getIpZone()
-                            addLog("Misc:getIpZone", resp.body)
-                        }
+                    SectionHeader("杂项")
+                    ActionRow {
+                        Btn("刷刷Feed") { addLog("Misc:brush", client.misc.brush().body) }
+                        Btn("IP区域") { addLog("Misc:getIpZone", client.misc.getIpZone().body) }
+                    }
+                    ActionRow {
+                        Input("misc_ip_data", get("misc_ip_data"), { inputs["misc_ip_data"] = it }, "IP地址")
+                        Btn("IP数据") { addLog("Misc:getIpData", client.misc.getIpData(get("misc_ip_data")).body) }
+                        Btn("IP详情") { addLog("Misc:getIpDetail", client.misc.getIpDetail(get("misc_ip_data")).body) }
+                    }
+                    ActionRow {
+                        Input("misc_ip_playlist", get("misc_ip_playlist"), { inputs["misc_ip_playlist"] = it }, "IP标识")
+                        Btn("IP歌单") { addLog("Misc:getIpPlaylist", client.misc.getIpPlaylist(get("misc_ip_playlist")).body) }
+                        Btn("IP首页") { addLog("Misc:getIpZoneHome", client.misc.getIpZoneHome(get("misc_ip_playlist")).body) }
+                    }
+                    ActionRow {
+                        Btn("服务器时间") { addLog("Misc:getServerTime", client.misc.getServerTime().body) }
                     }
 
-                    InputRow("misc_ip_data", get("misc_ip_data"), { inputs["misc_ip_data"] = it }, "IP地址")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("IP数据") {
-                            val resp = client.misc.getIpData(get("misc_ip_data"))
-                            addLog("Misc:getIpData", resp.body)
-                        }
-                        TestButton("IP详情") {
-                            val resp = client.misc.getIpDetail(get("misc_ip_data"))
-                            addLog("Misc:getIpDetail", resp.body)
-                        }
+                    Divider()
+
+                    // ============ 曲谱 ============
+                    SectionHeader("曲谱")
+                    ActionRow {
+                        Btn("标签列表") { addLog("Sheet:getTags", client.sheet.getTags().body) }
+                        Btn("合集列表") { addLog("Sheet:getCollections", client.sheet.getCollections().body) }
+                    }
+                    ActionRow {
+                        Input("sheet_instruments", get("sheet_instruments"), { inputs["sheet_instruments"] = it }, "乐器", "1")
+                        Input("sheet_level", get("sheet_level"), { inputs["sheet_level"] = it }, "难度", "0")
+                        Btn("推荐曲谱") { addLog("Sheet:getExplore", client.sheet.getExplore(get("sheet_instruments", "1").toIntOrNull() ?: 1, get("sheet_level", "0").toIntOrNull() ?: 0).body) }
+                        Btn("排行曲谱") { addLog("Sheet:getRank", client.sheet.getRank(get("sheet_instruments", "1").toIntOrNull() ?: 1, get("sheet_level", "0").toIntOrNull() ?: 0).body) }
+                    }
+                    ActionRow {
+                        Input("sheet_detail_id", get("sheet_detail_id"), { inputs["sheet_detail_id"] = it }, "曲谱ID")
+                        Btn("曲谱详情") { addLog("Sheet:getDetail", client.sheet.getDetail(get("sheet_detail_id")).body) }
+                    }
+                    ActionRow {
+                        Input("sheet_song_aid", get("sheet_song_aid"), { inputs["sheet_song_aid"] = it }, "AudioId")
+                        Input("sheet_song_inst", get("sheet_song_inst"), { inputs["sheet_song_inst"] = it }, "乐器", "1")
+                        Btn("曲谱歌曲") { addLog("Sheet:getSong", client.sheet.getSong(get("sheet_song_aid"), get("sheet_song_inst", "1").toIntOrNull() ?: 1).body) }
                     }
 
-                    InputRow("misc_ip_playlist", get("misc_ip_playlist"), { inputs["misc_ip_playlist"] = it }, "IP标识")
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("IP歌单") {
-                            val resp = client.misc.getIpPlaylist(get("misc_ip_playlist"))
-                            addLog("Misc:getIpPlaylist", resp.body)
-                        }
-                        TestButton("IP首页") {
-                            val resp = client.misc.getIpZoneHome(get("misc_ip_playlist"))
-                            addLog("Misc:getIpZoneHome", resp.body)
-                        }
-                    }
-
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                    Divider()
 
                     // ============ 清空日志 ============
-                    FlowRow(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TestButton("清空日志", color = MaterialTheme.colorScheme.error) {
-                            logText = "日志已清空"
-                        }
+                    ActionRow {
+                        Btn("清空日志", color = MaterialTheme.colorScheme.error) { logText = "日志已清空" }
                     }
 
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("运行日志:", style = MaterialTheme.typography.titleMedium)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("运行日志:", style = MaterialTheme.typography.labelMedium)
                     Spacer(modifier = Modifier.height(4.dp))
 
-                    // 日志显示区
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(500.dp)
-                            .background(Color.Black.copy(alpha = 0.05f))
-                            .padding(8.dp)
+                            .height(400.dp)
+                            .background(Color.Black.copy(alpha = 0.05f), RoundedCornerShape(4.dp))
+                            .padding(6.dp)
                     ) {
                         SelectionContainer {
                             Text(
                                 text = logText,
                                 fontFamily = FontFamily.Monospace,
-                                fontSize = 11.sp,
+                                fontSize = 10.sp,
+                                lineHeight = 13.sp,
                                 modifier = Modifier.verticalScroll(rememberScrollState())
                             )
                         }
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
                 }
             }
         }
@@ -896,41 +542,95 @@ fun App(
 }
 
 // ============================================================
-//  通用组件
+//  紧凑组件：输入框 + 按钮同行
 // ============================================================
 
+/** 分区小标题 */
 @Composable
-fun TestSection(title: String, content: @Composable FlowRowScope.() -> Unit) {
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        Text(title, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.secondary)
-        Spacer(modifier = Modifier.height(8.dp))
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            content = content
+private fun SectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 6.dp, bottom = 2.dp)
+    )
+}
+
+/** 分隔线 */
+@Composable
+private fun Divider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(vertical = 4.dp),
+        thickness = 0.5.dp,
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+/**
+ * 一行式操作区域：输入框和按钮混排在同一个 FlowRow 中。
+ *
+ * 输入框使用紧凑的 BasicTextField，不占用整行宽度。
+ */
+@Composable
+private fun ActionRow(content: @Composable FlowRowScope.() -> Unit) {
+    FlowRow(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        content = content
+    )
+}
+
+/**
+ * 紧凑输入框：带浅色边框和 placeholder 的内联文本框。
+ *
+ * - 高度 ~34dp，宽度根据内容自适应
+ * - 显示 placeholder 提示
+ * - 不使用 Material TextField 的大 label 浪费空间
+ */
+@Composable
+private fun FlowRowScope.Input(
+    @Suppress("UNUSED_PARAMETER") key: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    @Suppress("UNUSED_PARAMETER") hint: String,
+    placeholder: String = ""
+) {
+    Box(
+        modifier = Modifier
+            .defaultMinSize(minWidth = 80.dp)
+            .height(34.dp)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp))
+            .padding(horizontal = 8.dp, vertical = 0.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        if (value.isEmpty() && placeholder.isNotEmpty()) {
+            Text(
+                text = placeholder,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.35f)
+            )
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            singleLine = true,
+            textStyle = TextStyle(
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontFamily = FontFamily.Monospace
+            ),
+            cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
+/**
+ * 紧凑按钮：小巧的 FilledButton，适合与输入框混排。
+ */
 @Composable
-fun InputRow(
-    @Suppress("UNUSED_PARAMETER") key: String,
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String
-) {
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        label = { Text(label) },
-        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-        singleLine = true
-    )
-}
-
-@Composable
-fun TestButton(
+private fun FlowRowScope.Btn(
     text: String,
     color: Color = MaterialTheme.colorScheme.primary,
     onClick: suspend () -> Unit
@@ -942,27 +642,25 @@ fun TestButton(
         onClick = {
             scope.launch {
                 loading = true
-                try {
-                    onClick()
-                } catch (e: Exception) {
-                    // 内部处理异常
-                } finally {
-                    loading = false
-                }
+                try { onClick() }
+                catch (_: Exception) {}
+                finally { loading = false }
             }
         },
         enabled = !loading,
         colors = ButtonDefaults.buttonColors(containerColor = color),
-        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+        modifier = Modifier.height(34.dp),
+        shape = RoundedCornerShape(6.dp)
     ) {
         if (loading) {
             CircularProgressIndicator(
-                modifier = Modifier.size(16.dp),
+                modifier = Modifier.size(14.dp),
                 color = Color.White,
                 strokeWidth = 2.dp
             )
         } else {
-            Text(text, fontSize = 12.sp)
+            Text(text, fontSize = 11.sp, maxLines = 1)
         }
     }
 }

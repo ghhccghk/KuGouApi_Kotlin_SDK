@@ -11,6 +11,7 @@ import com.ghhccghk.multiplatform.kugouapi.core.RequestSigner
 import com.ghhccghk.multiplatform.kugouapi.core.ResponseType
 import com.ghhccghk.multiplatform.kugouapi.core.aesEncryptAuto
 import com.ghhccghk.multiplatform.kugouapi.core.aesEncryptWith
+import com.ghhccghk.multiplatform.kugouapi.core.aesDecryptWithSeed
 import com.ghhccghk.multiplatform.kugouapi.core.currentTimeMillis
 import com.ghhccghk.multiplatform.kugouapi.core.publicRasKey
 import com.ghhccghk.multiplatform.kugouapi.model.EncryptType
@@ -710,5 +711,160 @@ class AuthApi(private val executor: RequestExecutor) {
                 encryptType = EncryptType.WEB
             )
         )
+    }
+
+    // ============================================================
+    //  开放平台登录
+    //  对齐 module/login_openplat.js
+    // ============================================================
+
+    /**
+     * 开放平台登录 (微信 OAuth code 登录)。
+     *
+     * 流程:
+     * 1. 使用微信授权 code 换取 access_token + openid
+     * 2. AES 加密 access_token + RSA 加密密钥种子
+     * 3. POST `/v6/login_by_openplat`
+     * 4. 解密响应中的 secu_params 获取 token
+     *
+     * ⚠️ 不会自动写入 CookieJar，请自行从响应 body.data 中提取 token/userid。
+     *
+     * @param code 微信 OAuth 授权码
+     */
+    suspend fun loginByOpenPlat(
+        code: String
+    ): KuGouResponse {
+        val isLite = executor.config.isLite
+        val appId = if (isLite) KuGouConfig.WX_LITE_APP_ID else KuGouConfig.WX_APP_ID
+        val secret = if (isLite) KuGouConfig.WX_LITE_SECRET else KuGouConfig.WX_SECRET
+
+        val client = HttpClient()
+        try {
+            val tokenResp = client.get("https://api.weixin.qq.com/sns/oauth2/access_token") {
+                parameter("appid", appId)
+                parameter("secret", secret)
+                parameter("code", code)
+                parameter("grant_type", "authorization_code")
+            }.body<JsonObject>()
+
+            val accessToken = tokenResp["access_token"]?.jsonPrimitive?.content
+            val openid = tokenResp["openid"]?.jsonPrimitive?.content
+
+            if (accessToken.isNullOrEmpty() || openid.isNullOrEmpty()) {
+                return KuGouResponse(
+                    status = 502,
+                    body = buildJsonObject {
+                        put("status", 0)
+                        put("msg", "获取微信 access_token 失败: $tokenResp")
+                    },
+                    cookies = emptyMap(),
+                    headers = emptyMap()
+                )
+            }
+
+            val dateNow = currentTimeMillis()
+            val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(
+                buildJsonObject { put("access_token", accessToken) }.toString()
+            )
+            val pk = Crypto.rsaEncrypt(
+                buildJsonObject {
+                    put("clienttime_ms", dateNow)
+                    put("key", tempKey)
+                }.toString().encodeToByteArray(),
+                Crypto.publicRasKey
+            ).uppercase()
+
+            val dev = executor.cookieJar["KUGOU_API_DEV"] ?: ""
+            val guid = executor.cookieJar.getGuid()
+            val mac = executor.cookieJar["KUGOU_API_MAC"] ?: "02:00:00:00:00:00"
+
+            val t2Key = "fd14b35e3f81af3817a20ae7adae7020"
+            val t2Iv = "17a20ae7adae7020"
+            val t1Key = "5e4ef500e9597fe004bd09a46d8add98"
+            val t1Iv = "04bd09a46d8add98"
+
+            val t2Plain = "$guid|0f607264fc6318a92b9e13c65db7cd3c|$mac|$dev|$dateNow"
+            val t2 = if (isLite) Crypto.aesEncryptWith(t2Plain, t2Key, t2Iv) else "0"
+            val t1Plain = "|$dateNow"
+            val t1 = if (isLite) Crypto.aesEncryptWith(t1Plain, t1Key, t1Iv) else "0"
+
+            val dataMap = buildJsonObject {
+                put("dev", dev)
+                put("force_login", 1)
+                put("partnerid", 36)
+                put("clienttime_ms", dateNow)
+                put("t1", t1)
+                put("t2", t2)
+                put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
+                put("openid", openid)
+                put("params", encryptedParams)
+                put("pk", pk)
+            }
+
+            val response = executor.execute(
+                KuGouRequest(
+                    url = "/v6/login_by_openplat",
+                    method = HttpMethod.POST,
+                    data = dataMap,
+                    encryptType = EncryptType.ANDROID,
+                    headers = mapOf("x-router" to "login.user.kugou.com")
+                )
+            )
+
+            if (response.status == 200) {
+                val secuParams = response.body["data"]
+                    ?.jsonObject?.get("secu_params")
+                    ?.jsonPrimitive?.content
+                if (!secuParams.isNullOrEmpty()) {
+                    try {
+                        val decrypted = Crypto.aesDecryptWithSeed(secuParams, tempKey)
+                        val tokenBody = Json.parseToJsonElement(decrypted) as? JsonObject
+                        if (tokenBody != null) {
+                            val merged = buildJsonObject {
+                                response.body.forEach { (k, v) ->
+                                    if (k == "data") {
+                                        put(k, buildJsonObject {
+                                            v.jsonObject.forEach { (dk, dv) -> put(dk, dv) }
+                                            tokenBody.forEach { (tk, tv) -> put(tk, tv) }
+                                        })
+                                    } else {
+                                        put(k, v)
+                                    }
+                                }
+                            }
+                            return response.copy(body = merged)
+                        } else {
+                            val merged = buildJsonObject {
+                                response.body.forEach { (k, v) ->
+                                    if (k == "data") {
+                                        put(k, buildJsonObject {
+                                            v.jsonObject.forEach { (dk, dv) -> put(dk, dv) }
+                                            put("token", decrypted)
+                                        })
+                                    } else {
+                                        put(k, v)
+                                    }
+                                }
+                            }
+                            return response.copy(body = merged)
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+
+            return response
+        } catch (e: Exception) {
+            return KuGouResponse(
+                status = 502,
+                body = buildJsonObject {
+                    put("status", 0)
+                    put("msg", "开放平台登录异常: ${e.message}")
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        } finally {
+            client.close()
+        }
     }
 }
