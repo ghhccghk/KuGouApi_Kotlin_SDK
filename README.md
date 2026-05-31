@@ -238,7 +238,27 @@
 
 ---
 
+
 ## 💡 使用示例
+
+### 在要使用的模块下添加 KuGou Music API Kotlin Multiplatform SDK 依赖
+
+
+```groovy
+dependencies {
+    // ...
+    implementation 'top.ghhccghk.multiplatform.kugouapi:kugouapi-kmp:<VERSION>'
+}
+```
+
+or
+
+```kotlin
+dependencies {
+    // ...
+    implementation("top.ghhccghk.multiplatform.kugouapi:kugouapi-kmp:<VERSION>")
+}
+```
 
 ```kotlin
 // 1. 初始化客户端
