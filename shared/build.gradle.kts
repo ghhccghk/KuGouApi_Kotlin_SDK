@@ -1,5 +1,6 @@
 import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -7,7 +8,24 @@ plugins {
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.kotlinSerialization)
+    alias(libs.plugins.mavenPublish)
 }
+
+val localProperties = Properties().apply {
+    load(rootProject.file("local.properties").inputStream())
+}
+
+extra["mavenCentralUsername"] = localProperties.getProperty("mavenCentralUsername")
+extra["mavenCentralPassword"] = localProperties.getProperty("mavenCentralPassword")
+
+extra["signing.keyId"] =
+    localProperties.getProperty("signing.keyId")
+
+extra["signing.password"] =
+    localProperties.getProperty("signing.password")
+
+extra["signing.secretKeyRingFile"] =
+    localProperties.getProperty("signing.secretKeyRingFile")
 
 kotlin {
     listOf(
@@ -92,4 +110,28 @@ kotlin {
 
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
+}
+
+// ── Maven Publishing ─────────────────────────────────────────
+// Uses vanniktech/gradle-maven-publish-plugin
+// POM metadata (group, version, etc.) is in gradle.properties
+//
+// Publish locally:     ./gradlew :shared:publishToMavenLocal
+// Publish to Central:  ./gradlew :shared:publishAndReleaseToMavenCentral
+mavenPublishing {
+
+    pom {
+        developers {
+            developer {
+                id.set("ghhccghk")
+                name.set("李太白")
+                email.set("2137610394@qq.com")
+                organization.set("Independent Developer")
+                organizationUrl.set("https://github.com/ghhccghk")
+            }
+        }
+    }
+
+    publishToMavenCentral()
+    signAllPublications()
 }
