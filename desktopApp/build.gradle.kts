@@ -17,11 +17,11 @@ dependencies {
 
 compose.desktop {
     application {
-        mainClass = "com.ghhccghk.multiplatform.kugouapi.MainKt"
+        mainClass = "top.ghhccghk.multiplatform.kugouapi.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "com.ghhccghk.multiplatform.kugouapi"
+            packageName = "top.ghhccghk.multiplatform.kugouapi"
             packageVersion = "1.0.0"
         }
     }

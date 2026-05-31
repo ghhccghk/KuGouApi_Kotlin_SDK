@@ -32,7 +32,7 @@ kotlin {
     }
     
     androidLibrary {
-       namespace = "com.ghhccghk.multiplatform.kugouapi.shared"
+       namespace = "top.ghhccghk.multiplatform.kugouapi.shared"
        compileSdk = libs.versions.android.compileSdk.get().toInt()
        minSdk = libs.versions.android.minSdk.get().toInt()
     

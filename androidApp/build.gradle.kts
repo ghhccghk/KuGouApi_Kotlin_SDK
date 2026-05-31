@@ -22,11 +22,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.ghhccghk.multiplatform.kugouapi"
+    namespace = "top.ghhccghk.multiplatform.kugouapi"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.ghhccghk.multiplatform.kugouapi"
+        applicationId = "top.ghhccghk.multiplatform.kugouapi"
         minSdk = libs.versions.android.minSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
