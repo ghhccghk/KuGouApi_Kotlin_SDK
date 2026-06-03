@@ -26,13 +26,17 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import top.ghhccghk.multiplatform.kugouapi.core.CookieJar
 
 @Composable
 fun App(
     paddingValues: PaddingValues = PaddingValues(0.dp)
 ) {
     MaterialTheme {
-        val client = remember { KuGouClient() }
+        val client = remember {
+            val config = KuGouConfig(isLite = true)
+            KuGouClient(config = config, cookieJar = CookieJar(config))
+        }
         var logText by remember { mutableStateOf("等待测试...") }
 
         val jsonFormatter = remember { Json { prettyPrint = true } }

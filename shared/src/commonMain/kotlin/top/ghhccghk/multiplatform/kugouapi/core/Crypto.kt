@@ -4,44 +4,48 @@ import top.ghhccghk.multiplatform.kugouapi.KuGouConfig
 import kotlinx.serialization.json.*
 
 /**
- * Platform-specific cryptographic operations.
+ * 平台特定的加密操作。
  */
 expect object Crypto {
-    /** Returns lowercase hex string of MD5 hash */
+    /** 返回 MD5 哈希的小写十六进制字符串 */
     fun md5(data: String): String
 
-    /** Returns lowercase hex string of SHA-1 hash */
+    /** 返回 SHA-1 哈希的小写十六进制字符串 */
     fun sha1(data: String): String
 
-    /** AES-CBC encrypt with PKCS7 padding. Returns hex-encoded ciphertext. */
+    /** 使用 PKCS7 填充的 AES-CBC 加密。返回十六进制编码的密文。 */
     fun aesEncrypt(plaintext: String, key: String, iv: String): String
 
-    /** AES-CBC encrypt with PKCS7 padding. Returns base64-encoded ciphertext. */
+    /** 使用 PKCS7 填充的 AES-CBC 加密。返回 Base64 编码的密文。 */
     fun aesEncryptBase64(plaintext: String, key: String, iv: String): String
 
-    /** AES-CBC decrypt with PKCS7 padding. Input is base64-encoded ciphertext. Returns UTF-8 plaintext. */
+    /** 使用 PKCS7 填充的 AES-CBC 解密。输入为 Base64 编码的密文。返回 UTF-8 明文。 */
     fun aesDecryptBase64(ciphertextBase64: String, key: String, iv: String): String
 
-    /** AES-CBC decrypt with PKCS7 padding. Input is hex-encoded ciphertext. Returns UTF-8 plaintext. */
+    /** 使用 PKCS7 填充 of AES-CBC 解密。输入为十六进制编码的密文。返回 UTF-8 明文。 */
     fun aesDecrypt(ciphertextHex: String, key: String, iv: String): String
 
-    /** Raw RSA encryption (no padding). Returns hex-encoded ciphertext. */
+
+    /** 原始 RSA 加密（无填充）。返回十六进制编码的密文。 */
     suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String
 
-    /** RSA encryption with PKCS1-V1_5 padding. Returns hex-encoded ciphertext. */
+    /** 使用 PKCS1-V1_5 填充的 RSA 加密。返回十六进制编码的密文。 */
     suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String
 
-    /** Encode bytes to Base64 string */
+    /** 将字节数组编码为 Base64 字符串 */
     fun encodeBase64(data: ByteArray): String
 
-    /** Decode Base64 string to bytes */
+    /** 将 Base64 字符串解码为字节数组 */
     fun decodeBase64(data: String): ByteArray
 
-    /** Decompress zlib inflated data */
+    /** 解压缩 zlib 压缩的数据 */
     fun inflate(data: ByteArray): ByteArray
 }
-
-internal val Crypto.publicRasKey: String get() = "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB\n-----END PUBLIC KEY-----"
+fun Crypto.activePublicRasKey(config: KuGouConfig): String {
+    return if (config.isLite) publicLiteRasKey else publicRasKey
+}
+internal val publicRasKey: String get() = "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDIAG7QOELSYoIJvTFJhMpe1s/gbjDJX51HBNnEl5HXqTW6lQ7LC8jr9fWZTwusknp+sVGzwd40MwP6U5yDE27M/X1+UR4tvOGOqp94TJtQ1EPnWGWXngpeIW5GxoQGao1rmYWAu6oi1z9XkChrsUdC6DJE5E221wf/4WLFxwAtRQIDAQAB\n-----END PUBLIC KEY-----"
+internal val publicLiteRasKey: String get() = "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDECi0Np2UR87scwrvTr72L6oO01rBbbBPriSDFPxr3Z5syug0O24QyQO8bg27+0+4kBzTBTBOZ/WWU0WryL1JSXRTXLgFVxtzIY41Pe7lPOgsfTCn5kZcvKhYKJesKnnJDNr5/abvTGf+rHG3YRwsCHcQ08/q6ifSioBszvb3QiwIDAQAB\n-----END PUBLIC KEY-----"
 
 // ============================================================
 //  AES 加解密便捷方法

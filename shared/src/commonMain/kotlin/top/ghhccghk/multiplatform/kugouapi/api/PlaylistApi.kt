@@ -79,7 +79,7 @@ class PlaylistApi(private val executor: RequestExecutor) {
             put("uid", userid.toLongOrNull() ?: 0L)
             put("token", token)
         }.toString().encodeToByteArray()
-        val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.publicRasKey).uppercase()
+        val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.activePublicRasKey(executor.config)).uppercase()
 
         val response = executor.execute(
             KuGouRequest(

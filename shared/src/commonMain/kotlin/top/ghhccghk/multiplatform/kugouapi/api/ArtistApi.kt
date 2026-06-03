@@ -181,7 +181,7 @@ class ArtistApi(private val executor: RequestExecutor) {
             put("clienttime", clientTime)
             put("key", tempKey)
         }.toString().encodeToByteArray()
-        val p = Crypto.rsaEncryptPkcs1(rsaInput, Crypto.publicRasKey)
+        val p = Crypto.rsaEncryptPkcs1(rsaInput, Crypto.activePublicRasKey(executor.config))
 
         return executor.execute(
             KuGouRequest(
@@ -221,7 +221,7 @@ class ArtistApi(private val executor: RequestExecutor) {
             put("clienttime", clientTime)
             put("key", tempKey)
         }.toString().encodeToByteArray()
-        val p = Crypto.rsaEncryptPkcs1(rsaInput, Crypto.publicRasKey)
+        val p = Crypto.rsaEncryptPkcs1(rsaInput, Crypto.activePublicRasKey(executor.config))
 
         return executor.execute(
             KuGouRequest(

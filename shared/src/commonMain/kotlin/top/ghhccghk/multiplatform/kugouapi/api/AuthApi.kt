@@ -20,7 +20,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.put
-
+import top.ghhccghk.multiplatform.kugouapi.core.activePublicRasKey
 /**
  * 认证与身份 API
  * 提供设备注册、密码登录、手机验证码登录、Token 刷新、二维码登录等功能。
@@ -149,7 +149,8 @@ class AuthApi(private val executor: RequestExecutor) {
             put("uid", useridStr.toLongOrNull() ?: 0L)
             put("token", token)
         }.toString().encodeToByteArray()
-        val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.publicRasKey)
+
+        val p = Crypto.rsaEncryptPkcs1(rsaData, Crypto.activePublicRasKey(executor.config))
 
         // 4. 发起网络请求
         val response = executor.execute(
@@ -169,25 +170,39 @@ class AuthApi(private val executor: RequestExecutor) {
             val bytesStr = response.body["bytes"]?.jsonPrimitive?.content ?: ""
             if (bytesStr.isNotEmpty()) {
                 try {
-                    val bytes = bytesStr.split(",").map { it.toByte() }.toByteArray()
-                    val responseBase64 = Crypto.encodeBase64(bytes)
-                    val decryptedJson = Crypto.aesDecryptBase64(responseBase64, encryptKey, iv)
+                    val decryptedJson = Crypto.aesDecryptBase64(bytesStr, encryptKey, iv)
                     val body = Json.parseToJsonElement(decryptedJson) as JsonObject
                     val data = body["data"]?.jsonObject ?: buildJsonObject {}
                     val dfid = data["dfid"]?.jsonPrimitive?.content
                     if (dfid != null) {
                         executor.cookieJar["dfid"] = dfid
                     }
-                    val mergedBody = buildJsonObject {
-                        body.forEach { (k, v) -> if (k != "data") put(k, v) }
-                        put("data", data)
+
+                    // 合并本地身份信息到返回结果中，对齐格式
+                    val mergedData = buildJsonObject {
+                        data.forEach { (k, v) -> put(k, v) }
+                        put("mid", executor.cookieJar.getMid())
+                        put("guid", executor.cookieJar.getGuid())
+                        put("serverDev", executor.cookieJar.getDev())
+                        put("mac", executor.cookieJar["KUGOU_API_MAC"] ?: "02:00:00:00:00:00")
                     }
+
+                    val mergedBody = buildJsonObject {
+                        // 确保 status 和 error_code 存在
+                        put("status", body["status"] ?: JsonPrimitive(1))
+                        put("error_code", body["error_code"] ?: JsonPrimitive(0))
+                        body.forEach { (k, v) ->
+                            if (k != "data" && k != "status" && k != "error_code") put(k, v)
+                        }
+                        put("data", mergedData)
+                    }
+
                     return response.copy(body = mergedBody)
                 } catch (e: Exception) {
                     return response.copy(body = buildJsonObject {
                         put("status", 0)
                         put("error_code", -1)
-                        put("msg", "解密失败: ${e.message}")
+                        put("msg", "Decrypt failed: ${ e.printStackTrace()}")
                     })
                 }
             }
@@ -262,7 +277,7 @@ class AuthApi(private val executor: RequestExecutor) {
             put("clienttime_ms", dateNow)
             put("key", tempKey)
         }.toString()
-        val pk = Crypto.rsaEncrypt(rsaInput.encodeToByteArray(), Crypto.publicRasKey).uppercase()
+        val pk = Crypto.rsaEncrypt(rsaInput.encodeToByteArray(), Crypto.activePublicRasKey(executor.config)).uppercase()
 
         // 3. 构建请求参数
         val dataMap = buildJsonObject {
@@ -339,7 +354,7 @@ class AuthApi(private val executor: RequestExecutor) {
                     put("clienttime_ms", dateNow)
                     put("key", tempKey)
                 }.toString().encodeToByteArray(),
-                Crypto.publicRasKey
+                Crypto.activePublicRasKey(executor.config)
             ).uppercase())
             put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
         }
@@ -404,7 +419,7 @@ class AuthApi(private val executor: RequestExecutor) {
                 put("clienttime_ms", dateNow)
                 put("key", tempKey)
             }.toString().encodeToByteArray(),
-            Crypto.publicRasKey
+            Crypto.activePublicRasKey(executor.config)
         )
 
         // 4. 构建请求参数
@@ -516,7 +531,7 @@ class AuthApi(private val executor: RequestExecutor) {
                 put("clienttime_ms", clientTimeMs)
                 put("key", tempKey)
             }.toString().encodeToByteArray(),
-            Crypto.publicRasKey
+            Crypto.activePublicRasKey(executor.config)
         ).uppercase()
 
         return executor.execute(
@@ -771,7 +786,7 @@ class AuthApi(private val executor: RequestExecutor) {
                     put("clienttime_ms", dateNow)
                     put("key", tempKey)
                 }.toString().encodeToByteArray(),
-                Crypto.publicRasKey
+                Crypto.activePublicRasKey(executor.config)
             ).uppercase()
 
             val dev = executor.cookieJar["KUGOU_API_DEV"] ?: ""
