@@ -88,4 +88,34 @@ class UserApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    suspend fun getUserPlaylist(
+        pageSize: Int = 30,
+        page: Int = 1
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/v7/get_all_list",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("token", token)
+                    put("userid", userid)
+                    put("total_ver",979)
+                    put("type",2)
+                    put("page",page)
+                    put("pagesize",pageSize)
+                },
+                params = mapOf(
+                    "plat" to 1,
+                    "userid" to userid,
+                    "token" to token),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "cloudlist.service.kugou.com")
+            )
+        )
+
+    }
 }

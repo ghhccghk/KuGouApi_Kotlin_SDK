@@ -5,7 +5,7 @@ data class KuGouConfig(
     val clientVersion: Int = 20489,
     val liteAppId: Int = 3116,
     val liteClientVersion: Int = 11440,
-    val isLite: Boolean = false,
+    val isLite: Boolean = true,
     val defaultBaseUrl: String = "https://gateway.kugou.com",
     val timeoutMs: Long = 30_000,
     val userAgent: String = "Android15-1070-11083-46-0-DiscoveryDRADProtocol-wifi",

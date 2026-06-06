@@ -39,6 +39,10 @@ class CookieJar(private val config: KuGouConfig) {
 
     fun setToken(t: String) { _cookies["token"] = t }
     fun setUserid(id: Long) { _cookies["userid"] = id.toString() }
+    fun setDfid(d: String) { _cookies["dfid"] = d }
+    fun setMid(m: String) {_cookies["KUGOU_API_MID"] = m }
+    fun setGuid(g: String) { _cookies["KUGOU_API_GUID"] = g }
+    fun setDev(d: String) { _cookies["KUGOU_API_DEV"] = d }
 
 
     fun isLoggedIn(): Boolean = getToken().isNotEmpty() && getUserid() != "0"

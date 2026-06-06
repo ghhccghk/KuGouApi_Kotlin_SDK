@@ -3,6 +3,7 @@ package top.ghhccghk.multiplatform.kugouapi.api
 import top.ghhccghk.multiplatform.kugouapi.core.*
 import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
+import kotlinx.serialization.json.put
 
 /**
  * 歌单相关 API
@@ -344,5 +345,25 @@ class PlaylistApi(private val executor: RequestExecutor) {
                 headers = mapOf("x-router" to "cloudlist.service.kugou.com")
             )
         )
+    }
+
+    suspend fun getThemePlayLists(): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/v2/getthemelist",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("platform", "android")
+                    put("clientver", executor.config.activeClientVersion)
+                    put("clienttime", currentTimeMillis())
+                    put("area_code", 1)
+                    put("module_id", 1)
+                    put("userid",executor.cookieJar.getUserid())
+                },
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "everydayrec.service.kugou.com")
+            )
+        )
+
     }
 }
