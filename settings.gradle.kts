@@ -1,4 +1,4 @@
-rootProject.name = "KogouAPiKotlinMultiplatformSDK"
+rootProject.name = "KugouAPiKotlinMultiplatformSDK"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
