@@ -118,4 +118,38 @@ class UserApi(private val executor: RequestExecutor) {
         )
 
     }
+
+    suspend fun getUserDetail(): KuGouResponse {
+        val dateNow = currentTimeMillis() / 1000
+        val actualToken =  executor.cookieJar.getToken()
+        val actualUserid = executor.cookieJar.getUserid()
+
+
+        // RSA 加密密钥种子
+        val pk = Crypto.rsaEncrypt(
+            buildJsonObject {
+                put("clienttime", dateNow)
+                put("token", actualToken)
+            }.toString().encodeToByteArray(),
+            Crypto.activePublicRasKey(executor.config)
+        )
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/v3/get_my_info",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("visit_time", dateNow)
+                    put("userid", actualUserid)
+                    put("usertype",1)
+                    put("p",pk)
+                },
+                params = mapOf(
+                    "plat" to 1
+                ),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "usercenter.kugou.com")
+            )
+        )
+    }
 }

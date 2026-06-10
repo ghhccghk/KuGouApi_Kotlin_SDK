@@ -59,10 +59,10 @@ class RequestSigner(private val config: KuGouConfig) {
         return Crypto.md5("1014${paramsString}1014")
     }
 
-    fun signKey(hash: String, mid: String, userid: Any = 0, appid: Any? = null): String {
+    fun signKey(hash: String, mid: String, userid: Long = 0, appid: Long): String {
         val salt = config.signKeySalt
-        val appId = appid ?: config.activeAppId
-        return Crypto.md5("$hash$salt$appId$mid$userid")
+        println("$hash$salt$appid$mid$userid")
+        return Crypto.md5("$hash$salt$appid$mid$userid")
     }
 
     /**

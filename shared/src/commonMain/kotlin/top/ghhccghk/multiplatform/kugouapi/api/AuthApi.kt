@@ -170,6 +170,7 @@ class AuthApi(private val executor: RequestExecutor) {
             val bytesStr = response.body["bytes"]?.jsonPrimitive?.content ?: ""
             if (bytesStr.isNotEmpty()) {
                 try {
+                    println("bytesStr:$bytesStr")
                     val decryptedJson = Crypto.aesDecryptBase64(bytesStr, encryptKey, iv)
                     val body = Json.parseToJsonElement(decryptedJson) as JsonObject
                     val data = body["data"]?.jsonObject ?: buildJsonObject {}

@@ -215,7 +215,7 @@ class RequestExecutor internal constructor(
             params["clientver"] = config.activeClientVersion
             params["clienttime"] = clienttime
             if (token.isNotEmpty()) params["token"] = token
-            if (userid != "0") params["userid"] = userid
+            params["userid"] = userid
         }
         params.putAll(request.params)
 
@@ -227,23 +227,26 @@ class RequestExecutor internal constructor(
             else -> json.encodeToString(JsonElement.serializer(), serializeToElement(data))
         }
 
-        // ── 3. 签名 ──
+        // ── 3. encryptKey → 添加 `key` 参数 ──
 
-        if (!params.containsKey("signature") && !request.notSignature) {
-            params["signature"] = signer.computeSignature(request.encryptType, params, dataStr)
-        }
-
-        // ── 4. encryptKey → 添加 `key` 参数 ──
-
-        if (request.encryptKey && !params.containsKey("key")) {
+        if (request.encryptKey && !request.params.containsKey("key")) {
+            println("This is start key")
             val hash = params["hash"]?.toString() ?: ""
             params["key"] = signer.signKey(
                 hash = hash,
                 mid = mid,
-                userid = userid,
-                appid = params["appid"]
+                userid = userid.toLongOrNull()?:0L,
+                appid = config.activeAppId.toLong()
             )
         }
+
+        // ── 4. 签名 ──
+
+        if (!request.params.containsKey("signature") && !request.notSignature) {
+            println("This is start signature")
+            params["signature"] = signer.computeSignature(request.encryptType, params, dataStr)
+        }
+
 
         // ── 5. openapicdn URL 特殊处理 ──
 
@@ -264,13 +267,17 @@ class RequestExecutor internal constructor(
         headers["dfid"] = dfid
         headers["clienttime"] = clienttime.toString()
         headers["mid"] = mid
-        headers["kg-rc"] = "1"
-        headers["kg-thash"] = "5d816a0"
-        headers["kg-rec"] = "1"
-        headers["kg-rf"] = "B9EDA08A64250DEFFBCADDEE00F8F25F"
         // 用户提供的覆盖/补充
         headers.putAll(request.headers)
 
+        println("Final Param:")
+        params.forEach {
+            println("${it.key}=${it.value}")
+        }
+        println("Final Headers:")
+        headers.forEach {
+            println("${it.key}=${it.value}")
+        }
         // ── 7. 执行 HTTP 请求 ──
 
         return try {

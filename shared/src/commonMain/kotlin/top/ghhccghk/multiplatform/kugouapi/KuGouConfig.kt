@@ -4,7 +4,7 @@ data class KuGouConfig(
     val appId: Int = 1005,
     val clientVersion: Int = 20489,
     val liteAppId: Int = 3116,
-    val liteClientVersion: Int = 11440,
+    val liteClientVersion: Int = 11436,
     val isLite: Boolean = true,
     val defaultBaseUrl: String = "https://gateway.kugou.com",
     val timeoutMs: Long = 30_000,

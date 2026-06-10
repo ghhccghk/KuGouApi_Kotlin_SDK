@@ -305,7 +305,7 @@ class SongApi(private val executor: RequestExecutor) {
             "area_code" to 1,
             "hash" to hash.lowercase(),
             "ssa_flag" to "is_fromtrack",
-            "version" to 11430,
+            "version" to 11436,
             "page_id" to pageId,
             "quality" to finalQuality,
             "album_audio_id" to albumAudioId,
@@ -314,10 +314,10 @@ class SongApi(private val executor: RequestExecutor) {
             "cmd" to 26,
             "pidversion" to 3001,
             "IsFreePart" to (if (freePart) 1 else 0),
-            "ppage_id" to (if (ppageId.isNotEmpty()) ppageId else defaultPPageId),
+            "ppage_id" to (ppageId.ifEmpty { defaultPPageId }),
             "cdnBackup" to 1,
             "module" to "",
-            "clientver" to 11430
+            "kcard" to 0
         )
 
         return executor.execute(
@@ -328,7 +328,6 @@ class SongApi(private val executor: RequestExecutor) {
                 encryptType = EncryptType.ANDROID,
                 headers = mapOf("x-router" to "trackercdn.kugou.com"),
                 encryptKey = true,
-                notSignature = true
             )
         )
     }
