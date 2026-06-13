@@ -137,11 +137,12 @@ fun App(
                     }
                     ActionRow {
                         Input("search_keyword", get("search_keyword", "周杰伦"), { inputs["search_keyword"] = it }, "关键词", "周杰伦")
+                        Input("search_lyric_hash", get("search_lyric_hash"), { inputs["search_lyric_hash"] = it }, "歌词Hash")
                         Btn("搜索") { addLog("Search:search", client.search.search(get("search_keyword", "周杰伦")).body) }
                         Btn("混合") { addLog("Search:searchMixed", client.search.searchMixed(get("search_keyword", "周杰伦")).body) }
                         Btn("联想") { addLog("Search:searchSuggest", client.search.searchSuggest(get("search_keyword", "周杰伦")).body) }
                         Btn("复杂") { addLog("Search:searchComplex", client.search.searchComplex(get("search_keyword", "周杰伦")).body) }
-                        Btn("歌词") { addLog("Search:searchLyric", client.search.searchLyric(get("search_keyword", "周杰伦")).body) }
+                        Btn("歌词") { addLog("Search:searchLyric", client.search.searchLyric(hash = get("search_lyric_hash")).body) }
                     }
 
                     Divider()

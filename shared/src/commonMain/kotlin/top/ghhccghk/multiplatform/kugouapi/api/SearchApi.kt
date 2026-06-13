@@ -124,26 +124,28 @@ class SearchApi(private val executor: RequestExecutor) {
      * 歌词搜索
      */
     suspend fun searchLyric(
-        keywords: String,
-        page: Int = 1,
-        pageSize: Int = 30,
+        keywords: String = "",
+        hash: String = "",
+        albumAudioId: Long = 0L,
+        man: String = "no",
     ): KuGouResponse {
         return executor.execute(
             KuGouRequest(
-                url = "/v1/search/lyric",
+                baseUrl = "https://lyrics.kugou.com",
+                url = "/v1/search",
                 method = HttpMethod.GET,
+                encryptType = EncryptType.ANDROID,
                 params = mapOf(
                     "keyword" to keywords,
-                    "page" to page,
-                    "pagesize" to pageSize,
-                    "platform" to "AndroidFilter",
-                    "albumhide" to 0,
-                    "iscorrection" to 1,
-                    "nocollect" to 0,
+                    "album_audio_id" to albumAudioId,
+                    "appid" to executor.config.activeAppId,
+                    "clientver" to executor.config.activeClientVersion,
+                    "duration" to 0,
+                    "hash" to hash,
+                    "man" to man,
+                    "lrctxt" to 1,
                 ),
-                headers = mapOf(
-                    "x-router" to "complexsearch.kugou.com",
-                ),
+                clearDefaultParams = true
             )
         )
     }

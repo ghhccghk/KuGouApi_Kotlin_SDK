@@ -230,7 +230,6 @@ class RequestExecutor internal constructor(
         // ── 3. encryptKey → 添加 `key` 参数 ──
 
         if (request.encryptKey && !request.params.containsKey("key")) {
-            println("This is start key")
             val hash = params["hash"]?.toString() ?: ""
             params["key"] = signer.signKey(
                 hash = hash,
@@ -243,7 +242,6 @@ class RequestExecutor internal constructor(
         // ── 4. 签名 ──
 
         if (!request.params.containsKey("signature") && !request.notSignature) {
-            println("This is start signature")
             params["signature"] = signer.computeSignature(request.encryptType, params, dataStr)
         }
 
