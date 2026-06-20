@@ -38,4 +38,5 @@ class KuGouClient(
     val radio = RadioApi(executor)
     val recommend = RecommendApi(executor)
     val sheet = SheetApi(executor)
+    val audioMatch = AudioMatchApi(executor)
 }

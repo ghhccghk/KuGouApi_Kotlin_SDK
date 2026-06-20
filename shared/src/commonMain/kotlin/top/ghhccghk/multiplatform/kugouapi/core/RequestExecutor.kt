@@ -224,6 +224,7 @@ class RequestExecutor internal constructor(
         val dataStr: String = when (val data = request.data) {
             null -> ""
             is String -> data
+            is ByteArray -> ""  // 二进制数据不参与字符串签名
             else -> json.encodeToString(JsonElement.serializer(), serializeToElement(data))
         }
 
@@ -300,6 +301,10 @@ class RequestExecutor internal constructor(
                         val data = request.data
                         if (data != null) {
                             when (data) {
+                                is ByteArray -> {
+                                    contentType(request.contentType)
+                                    setBody(data)
+                                }
                                 is String -> {
                                     // 原始字符串 Body — 不设置 application/json
                                     setBody(data)

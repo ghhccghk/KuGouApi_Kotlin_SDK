@@ -28,14 +28,18 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import top.ghhccghk.multiplatform.kugouapi.core.CookieJar
 
+val config = KuGouConfig(isLite = true)
+/**
+ * @param client SDK请求实例，不传入则默认创建一个
+ */
 @Composable
 fun App(
-    paddingValues: PaddingValues = PaddingValues(0.dp)
+    paddingValues: PaddingValues = PaddingValues(0.dp),
+    client: KuGouClient = KuGouClient(config = config, cookieJar = CookieJar(config))
 ) {
     MaterialTheme {
         val client = remember {
-            val config = KuGouConfig(isLite = true)
-            KuGouClient(config = config, cookieJar = CookieJar(config))
+            client
         }
         var logText by remember { mutableStateOf("等待测试...") }
 
