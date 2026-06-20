@@ -1,5 +1,7 @@
 package top.ghhccghk.multiplatform.kugouapi.core
 
+import kotlinx.coroutines.await
+
 actual object Crypto {
 
     actual fun md5(data: String): String {
@@ -79,6 +81,17 @@ actual object Crypto {
 
     actual fun inflate(data: ByteArray): ByteArray {
         return jsInflate(data)
+    }
+
+    actual fun aesEncryptRaw(plaintext: ByteArray, key: ByteArray, iv: ByteArray): ByteArray {
+        val padded = pkcs7Pad(plaintext, 16)
+        return aesCbcEncrypt(padded, key, iv)
+    }
+
+    actual suspend fun rsaEncryptOaep(data: ByteArray, spkiDerHex: String): ByteArray {
+        val promise = jsRsaOaepEncryptJs(spkiDerHex, js("new Uint8Array(data.toTypedArray())"))
+        val resultHex = promise.unsafeCast<dynamic>().await() as String
+        return hexToBytes(resultHex)
     }
 
     // ============================================================
@@ -685,4 +698,15 @@ private fun platformAtob(str: String): String {
     return js(
         "typeof atob === 'function' ? atob(str) : Buffer.from(str, 'base64').toString('binary')"
     ) as String
+}
+
+private fun jsRsaOaepEncryptJs(spkiHex: String, dataJs: dynamic): dynamic {
+    return js("""
+        (async function(spkiHex, data) {
+            var spkiBytes = new Uint8Array(spkiHex.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+            var cryptoKey = await crypto.subtle.importKey('spki', spkiBytes.buffer, {name: 'RSA-OAEP', hash: 'SHA-256'}, false, ['encrypt']);
+            var ct = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, cryptoKey, data);
+            return Array.from(new Uint8Array(ct)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        })(spkiHex, dataJs)
+    """)
 }

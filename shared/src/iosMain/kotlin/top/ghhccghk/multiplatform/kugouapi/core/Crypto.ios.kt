@@ -89,9 +89,6 @@ actual object Crypto {
         return nsData.toByteArray()
     }
 
-    /**
-     * 使用 iOS 原生 zlib (libz) 进行 Deflate 解压
-     */
     actual fun inflate(data: ByteArray): ByteArray {
         if (data.isEmpty()) return ByteArray(0)
 
@@ -146,6 +143,15 @@ actual object Crypto {
         }
 
         return result
+    }
+
+    actual fun aesEncryptRaw(plaintext: ByteArray, key: ByteArray, iv: ByteArray): ByteArray {
+        val padded = pkcs7Pad(plaintext, 16)
+        return aesCbcEncrypt(padded, key, iv)
+    }
+
+    actual suspend fun rsaEncryptOaep(data: ByteArray, spkiDerHex: String): ByteArray = withContext(Dispatchers.IO) {
+        throw UnsupportedOperationException("RSA-OAEP is not yet implemented on iOS")
     }
 
     // ============================================================

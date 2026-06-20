@@ -104,6 +104,25 @@ actual object Crypto {
         return bos.toByteArray()
     }
 
+    actual fun aesEncryptRaw(plaintext: ByteArray, key: ByteArray, iv: ByteArray): ByteArray {
+        val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+        cipher.init(
+            Cipher.ENCRYPT_MODE,
+            SecretKeySpec(key, "AES"),
+            IvParameterSpec(iv)
+        )
+        return cipher.doFinal(plaintext)
+    }
+
+    actual suspend fun rsaEncryptOaep(data: ByteArray, spkiDerHex: String): ByteArray = withContext(Dispatchers.IO) {
+        val keyBytes = hexToBytes(spkiDerHex)
+        val keyFactory = KeyFactory.getInstance("RSA")
+        val publicKey = keyFactory.generatePublic(X509EncodedKeySpec(keyBytes))
+        val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        cipher.doFinal(data)
+    }
+
     private fun getRsaPublicKey(publicKeyPem: String): java.security.interfaces.RSAPublicKey {
         val pemContent = publicKeyPem
             .replace("-----BEGIN PUBLIC KEY-----", "")

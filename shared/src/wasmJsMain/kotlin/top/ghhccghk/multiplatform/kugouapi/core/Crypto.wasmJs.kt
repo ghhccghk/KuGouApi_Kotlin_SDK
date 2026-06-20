@@ -96,6 +96,17 @@ actual object Crypto {
         return decodeBase64(base64Output)
     }
 
+    actual fun aesEncryptRaw(plaintext: ByteArray, key: ByteArray, iv: ByteArray): ByteArray {
+        val padded = pkcs7Pad(plaintext, 16)
+        return aesCbcEncrypt(padded, key, iv)
+    }
+
+    actual suspend fun rsaEncryptOaep(data: ByteArray, spkiDerHex: String): ByteArray {
+        val dataBase64 = encodeBase64(data)
+        val resultHex = (wasmRsaOaepEncrypt(spkiDerHex, dataBase64).unsafeCast<Promise<JsString>>()).await().toString()
+        return hexToBytes(resultHex)
+    }
+
     // ============================================================
     //  Private helpers - PEM / Hex
     // ============================================================
@@ -654,6 +665,24 @@ private external fun wasmGetRsaKeyComponents(pemBase64: String): JsAny
     })
 """)
 private external fun wasmRsaPkcs1Encrypt(pemBase64: String, dataBase64: String): JsAny
+
+@OptIn(ExperimentalWasmJsInterop::class)
+@JsFun("""
+    (function(spkiHex, dataBase64) {
+        return (async function() {
+            var spkiBytes = new Uint8Array(spkiHex.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
+            
+            const dataBinary = atob(dataBase64);
+            const dataBytes = new Uint8Array(dataBinary.length);
+            for (let i = 0; i < dataBinary.length; i++) dataBytes[i] = dataBinary.charCodeAt(i);
+
+            var cryptoKey = await crypto.subtle.importKey('spki', spkiBytes.buffer, {name: 'RSA-OAEP', hash: 'SHA-256'}, false, ['encrypt']);
+            var ct = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, cryptoKey, dataBytes);
+            return Array.from(new Uint8Array(ct)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+        })();
+    })
+""")
+private external fun wasmRsaOaepEncrypt(spkiHex: String, dataBase64: String): JsAny
 
 @OptIn(ExperimentalWasmJsInterop::class)
 @JsFun("""

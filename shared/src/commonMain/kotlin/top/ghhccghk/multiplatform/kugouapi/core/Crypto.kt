@@ -40,6 +40,20 @@ expect object Crypto {
 
     /** 解压缩 zlib 压缩的数据 */
     fun inflate(data: ByteArray): ByteArray
+
+    /**
+     * 原始 AES-CBC 加密（PKCS7 填充），输入输出均为 ByteArray。
+     * 用于 fingerprint 模块等需要直接操作字节数组的场景。
+     */
+    fun aesEncryptRaw(plaintext: ByteArray, key: ByteArray, iv: ByteArray): ByteArray
+
+    /**
+     * RSA-OAEP SHA-256 加密。
+     * @param data 待加密的字节数组
+     * @param spkiDerHex SPKI DER 格式公钥的十六进制字符串
+     * @return 密文字节数组
+     */
+    suspend fun rsaEncryptOaep(data: ByteArray, spkiDerHex: String): ByteArray
 }
 fun Crypto.activePublicRasKey(config: KuGouConfig): String {
     return if (config.isLite) publicLiteRasKey else publicRasKey

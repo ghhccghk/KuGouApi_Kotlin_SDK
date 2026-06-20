@@ -11,22 +11,6 @@ plugins {
     alias(libs.plugins.mavenPublish)
 }
 
-val localProperties = Properties().apply {
-    load(rootProject.file("local.properties").inputStream())
-}
-
-extra["mavenCentralUsername"] = localProperties.getProperty("mavenCentralUsername")
-extra["mavenCentralPassword"] = localProperties.getProperty("mavenCentralPassword")
-
-extra["signing.keyId"] =
-    localProperties.getProperty("signing.keyId")
-
-extra["signing.password"] =
-    localProperties.getProperty("signing.password")
-
-extra["signing.secretKeyRingFile"] =
-    localProperties.getProperty("signing.secretKeyRingFile")
-
 kotlin {
     listOf(
         iosArm64(),
@@ -89,6 +73,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
         }
         jsMain.dependencies {
             implementation(libs.wrappers.browser)
