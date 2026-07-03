@@ -10,6 +10,7 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import kotlinx.serialization.json.*
+import top.ghhccghk.multiplatform.kugouapi.core.Fingerprint.generateWebGLHash
 import kotlin.concurrent.Volatile
 
 /**
@@ -203,6 +204,7 @@ class RequestExecutor internal constructor(
         val token = cookieJar.getToken()
         val userid = cookieJar.getUserid()
         val clienttime = currentTimeMillis() / 1000
+        val webGLHash = if (cookieJar.getWebGLHash() != ""){ cookieJar.getWebGLHash() } else {generateWebGLHash()}
 
         // ── 1. 构建参数 (不进行排序 — 仅在签名内部进行排序) ──
 
@@ -269,14 +271,14 @@ class RequestExecutor internal constructor(
         // 用户提供的覆盖/补充
         headers.putAll(request.headers)
 
-        println("Final Param:")
-        params.forEach {
-            println("${it.key}=${it.value}")
-        }
-        println("Final Headers:")
-        headers.forEach {
-            println("${it.key}=${it.value}")
-        }
+//        println("Final Param:")
+//        params.forEach {
+//            println("${it.key}=${it.value}")
+//        }
+//        println("Final Headers:")
+//        headers.forEach {
+//            println("${it.key}=${it.value}")
+//        }
         // ── 7. 执行 HTTP 请求 ──
 
         return try {
@@ -321,6 +323,36 @@ class RequestExecutor internal constructor(
                         }
                     }
                 }
+                HttpMethod.DELETE -> {
+                    client.delete(finalUrl) {
+                        applyTimeout(config.timeoutMs)
+                        finalParams.forEach { (key, value) ->
+                            if (value != null) parameter(key, normalize(value))
+                        }
+                        headers.forEach { (k, v) -> header(k, v) }
+
+                        val data = request.data
+                        if (data != null) {
+                            when (data) {
+                                is ByteArray -> {
+                                    contentType(request.contentType)
+                                    setBody(data)
+                                }
+                                is String -> {
+                                    setBody(data)
+                                }
+                                is JsonObject -> {
+                                    contentType(ContentType.Application.Json)
+                                    setBody(data.toString())
+                                }
+                                else -> {
+                                    contentType(ContentType.Application.Json)
+                                    setBody(data)
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // ── 8. 解析响应 ──
@@ -329,6 +361,9 @@ class RequestExecutor internal constructor(
                 k to v.joinToString("; ")
             }
             val responseCookies = extractCookies(response)
+
+            // ── SSA 验证码检测 ──
+            val ssaCode = response.headers["ssa-code"] ?: response.headers["SSA-CODE"]
 
             val (finalStatus, responseBody) = if (request.responseType == ResponseType.BYTES) {
                 val responseBytes = response.body<ByteArray>()
@@ -356,7 +391,21 @@ class RequestExecutor internal constructor(
                     response.status.value
                 }
 
-                mappedStatus to parsedBody
+                // ── SSA 验证码处理 (对齐 request.js) ──
+                // 成功和失败路径都需要附加 SSA 信息
+                val finalBody = if (ssaCode != null) {
+                    val simulate = Fingerprint.generateSimulate(mid, userid, dfid, webGLHash)
+                    buildJsonObject {
+                        parsedBody.forEach { (k, v) -> put(k, v) }
+                        put("ssaCode", ssaCode)
+                        if (simulate.edt.isNotEmpty()) put("edt", simulate.edt)
+                        if (simulate.sid.isNotEmpty()) put("sid", simulate.sid)
+                    }
+                } else {
+                    parsedBody
+                }
+
+                mappedStatus to finalBody
             }
 
             KuGouResponse(

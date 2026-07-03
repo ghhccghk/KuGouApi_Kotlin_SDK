@@ -285,4 +285,40 @@ class ArtistApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    // ────────────────────────────────────────────────────────────────
+    // 新增：歌手列表
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * 获取歌手列表
+     * 对齐 node module/singer_list.js
+     *
+     * 注意：与 [getLists] 使用的 /ocean/v6/author/list 不同，
+     * 此接口使用 /ocean/v6/singer/list
+     *
+     * @param hotsize 热门数量
+     * @param sextype 性别类型：0=全部, 1=男, 2=女, 3=组合
+     * @param type 类型
+     */
+    suspend fun getSingerList(
+        hotsize: Int = 200,
+        sextype: Int = 0,
+        type: Int = 0
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/ocean/v6/singer/list",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "hotsize" to hotsize,
+                    "musician" to 0,
+                    "sextype" to sextype,
+                    "showtype" to 2,
+                    "type" to type
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
 }

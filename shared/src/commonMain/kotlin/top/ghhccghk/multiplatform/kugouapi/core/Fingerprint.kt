@@ -181,4 +181,65 @@ object Fingerprint {
             rsaCiphertextHex = rsaCiphertextHex
         )
     }
+
+    // ============================================================
+    //  SSA 模拟行为指纹 (对齐 generate_simulate.js)
+    // ============================================================
+
+    /**
+     * SSA 模拟行为指纹结果
+     *
+     * @property edt Base64 编码的 AES-128-CBC 加密行为数据
+     * @property sid Base64 编码的 RSA-OAEP SHA-256 加密 AES 密钥
+     */
+    data class SimulateResult(
+        val edt: String,
+        val sid: String,
+    )
+
+    /**
+     * 对齐 Node.js `generate_simulate.js` 的 `generateSimulate()`
+     *
+     * 在 SSA 二次安全验证触发时，生成模拟行为指纹数据用于服务端校验。
+     * 加密流程:
+     * 1. 生成 AES-128 密钥: `MD5(randomString(16)).substring(0, 16)` 转 UTF-8 bytes
+     * 2. AES-128-CBC 加密行为明文 → Base64 (EDT)
+     * 3. RSA-OAEP SHA-256 加密 AES 密钥 → Base64 (SID)
+     *
+     * @param mid 设备 MID 标识
+     * @param userid 用户 ID
+     * @param dfid 设备指纹 ID
+     * @param webglHash WebGL 指纹哈希，为空时自动生成
+     */
+    suspend fun generateSimulate(
+        mid: String,
+        userid: String,
+        dfid: String,
+        webglHash: String = ""
+    ): SimulateResult {
+        val actualWebglHash = webglHash.ifEmpty { generateWebGLHash() }
+
+        // 1. 生成 AES 密钥 — 对齐 JS: MD5(randomString(16)).substring(0, 16)
+        val randomStr = PlatformIdentity.generateRandomString(16)
+        val md5Hex = Crypto.md5(randomStr)
+        val aesKeyStr = md5Hex.substring(0, 16)
+        val aesKeyBytes = aesKeyStr.encodeToByteArray()
+
+        // 2. 生成行为数据 + 时间戳
+        val data = generateEDTData()
+        val ts = currentTimeMillis() / 1000
+
+        // 3. 构建明文
+        val plaintext = "mid=$mid;userid=$userid;dfid=$dfid;webgl=$actualWebglHash;webdriver=0;ts=$ts;data=$data"
+
+        // 4. AES-128-CBC 加密 → Base64 (EDT)
+        val aesCt = Crypto.aesEncryptRaw(plaintext.encodeToByteArray(), aesKeyBytes, AES_IV)
+        val edt = Crypto.encodeBase64(aesCt)
+
+        // 5. RSA-OAEP SHA-256 加密 AES 密钥 → Base64 (SID)
+        val rsaCt = Crypto.rsaEncryptOaep(aesKeyBytes, RSA_SPKI_HEX)
+        val sid = Crypto.encodeBase64(rsaCt)
+
+        return SimulateResult(edt = edt, sid = sid)
+    }
 }

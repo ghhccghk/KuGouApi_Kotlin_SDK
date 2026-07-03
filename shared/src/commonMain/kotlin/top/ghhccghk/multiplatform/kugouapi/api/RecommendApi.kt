@@ -210,4 +210,85 @@ class RecommendApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    // ────────────────────────────────────────────────────────────────
+    // 新增：主题音乐
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * 获取主题音乐推荐
+     * 对齐 node module/theme_music.js
+     *
+     * @param ids 主题分类 ID（可选）
+     */
+    suspend fun getThemeMusic(ids: String = ""): KuGouResponse {
+        val dataMap = buildJsonObject {
+            put("platform", "android")
+            put("clienttime", currentTimeMillis() / 1000)
+            if (ids.isNotEmpty()) put("show_theme_category_ids", ids)
+            put("userid", executor.cookieJar.getUserid())
+            put("module_id", 508)
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/everydayrec.service/v1/mul_theme_category_recommend",
+                method = HttpMethod.POST,
+                data = dataMap,
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取主题音乐详情
+     * 对齐 node module/theme_music_detail.js
+     *
+     * @param id 主题分类 ID
+     */
+    suspend fun getThemeMusicDetail(id: String): KuGouResponse {
+        val dataMap = buildJsonObject {
+            put("platform", "android")
+            put("clienttime", currentTimeMillis() / 1000)
+            put("theme_category_id", id)
+            put("show_theme_category_id", 0)
+            put("userid", executor.cookieJar.getUserid())
+            put("module_id", 508)
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/everydayrec.service/v1/theme_category_recommend",
+                method = HttpMethod.POST,
+                data = dataMap,
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取主题歌单所有歌曲
+     * 对齐 node module/theme_playlist_track.js
+     *
+     * @param themeId 主题 ID
+     */
+    suspend fun getThemePlaylistTrack(themeId: String): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/v2/gettheme_songidlist",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("platform", "android")
+                    put("clientver", executor.config.activeClientVersion)
+                    put("clienttime", currentTimeMillis())
+                    put("area_code", 1)
+                    put("module_id", 1)
+                    put("userid", executor.cookieJar.getUserid())
+                    put("theme_id", themeId)
+                },
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "everydayrec.service.kugou.com")
+            )
+        )
+    }
 }

@@ -18,6 +18,6 @@ data class KuGouRequest(
     val contentType: ContentType = ContentType.Application.Json,
 )
 
-enum class HttpMethod { GET, POST }
+enum class HttpMethod { GET, POST, DELETE }
 
 enum class ResponseType { JSON, TEXT, BYTES }

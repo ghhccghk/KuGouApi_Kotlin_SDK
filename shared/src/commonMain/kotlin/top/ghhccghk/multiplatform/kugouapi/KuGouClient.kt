@@ -39,4 +39,7 @@ class KuGouClient(
     val recommend = RecommendApi(executor)
     val sheet = SheetApi(executor)
     val audioMatch = AudioMatchApi(executor)
+    val yueku = YuekuApi(executor)
+    val youth = YouthApi(executor)
+    val top = TopApi(executor)
 }

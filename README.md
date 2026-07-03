@@ -12,11 +12,11 @@
 - **多平台支持**: 统一的 API 调用接口，底层适配不同平台的 HTTP 与加密实现。
 - **协程优先**: 所有网络请求均采用 `suspend` 挂起函数，完美契合 Kotlin 协程流。
 - **全量加密对齐**: 严格对齐酷狗 Android/iOS 端的 MD5 签名、AES-CBC 与 RSA-PKCS1 加密算法。
-- **模块化设计**: 17 个 API 分类模块，112 个接口，按需调用。
+- **模块化设计**: 18 个 API 分类模块，113 个接口，按需调用。
 
 ---
 
-## 📦 已实现 API 模块状态（共 17 个模块 · 112 个 API）
+## 📦 已实现 API 模块状态（共 18 个模块 · 113 个 API）
 
 ### Auth — 认证与身份（13 个）
 
@@ -215,6 +215,12 @@
 | `getDetail(opernId)` | `sheet_detail.js` | 曲谱详情 |
 | `getSong(albumAudioId, instruments, level)` | `sheet_song.js` | 曲谱歌曲信息 |
 
+### AudioMatch — 听歌识曲（1 个）
+
+| 方法 | 对齐 Node.js 模块 | 说明 |
+| :--- | :--- | :--- |
+| `match(audioData, areaCode, includeUnpublish)` | `audio_match.js` | 听歌识曲，上传 PCM 音频数据识别歌曲 |
+
 ---
 
 ## 🛠 编译与运行
@@ -274,6 +280,17 @@ val searchResp = client.search.search("周杰伦")
 // 4. 下载并解码歌词
 val lyricResp = client.song.getLyric(id = "...", accessKey = "...", decode = true)
 val krcText = lyricResp.body["decodeContent"]
+
+// 5. 听歌识曲（需要 16-bit PCM 音频数据）
+val pcmData: ByteArray = // ... 从麦克风或音频文件获取
+val matchResp = client.audioMatch.match(pcmData)
+println("识别结果: ${matchResp.body}")
+
+// 6. 行为指纹生成（用于登录安全验证）
+val edtData = Fingerprint.generateEDTData()
+val fingerprint = Fingerprint.encryptSid(edtData)
+println("SID: ${fingerprint.rsaCiphertextHex}")
+println("EDT: ${fingerprint.aesCiphertextHex}")
 ```
 
 ---

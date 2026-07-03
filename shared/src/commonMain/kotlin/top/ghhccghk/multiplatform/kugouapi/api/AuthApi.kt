@@ -21,6 +21,7 @@ import io.ktor.client.request.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.put
 import top.ghhccghk.multiplatform.kugouapi.core.activePublicRasKey
+import top.ghhccghk.multiplatform.kugouapi.core.Fingerprint
 /**
  * 认证与身份 API
  * 提供设备注册、密码登录、手机验证码登录、Token 刷新、二维码登录等功能。
@@ -522,6 +523,7 @@ class AuthApi(private val executor: RequestExecutor) {
         val clientTimeMs = currentTimeMillis()
         val token = executor.cookieJar.getToken()
         val userId = executor.cookieJar.getUserid()
+        println("Token:$token, UserId:$userId , ClientTimeMS:$clientTimeMs")
 
         val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(buildJsonObject {
             put("token", token)
@@ -882,5 +884,115 @@ class AuthApi(private val executor: RequestExecutor) {
         } finally {
             client.close()
         }
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 新增：验证码相关
+    // ────────────────────────────────────────────────────────────────
+
+    /**
+     * 获取验证码数据
+     * 对齐 node module/get_verify_info.js
+     *
+     * @param eventid 事件 ID（由 SSA 二次验证返回）
+     */
+    suspend fun getVerifyInfo(eventid: String): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/verifyservice/v3/get_verify_info",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("eventid", eventid)
+                    put("userid", userid)
+                    put("platid", 2)
+                    put("rtype", 1)
+                    put("wasm", 1)
+                    put("i", "")
+                    put("sid", "")
+                    put("edt", "")
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 验证用户信息（验证码提交）
+     * 对齐 node module/verify_user_info.js
+     *
+     * @param eventid 事件 ID
+     * @param verifycode 验证码
+     * @param vType 验证类型：23 = SMS，32 = CAPTCHA
+     */
+    suspend fun verifyUserInfo(
+        eventid: String,
+        verifycode: String = "",
+        vType: Int = 23
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val mid = executor.cookieJar.getMid()
+        val dfid = executor.cookieJar.getDfid()
+        val webglHash = executor.cookieJar.getWebGLHash()
+
+        // 生成 sid/edt 指纹
+        val simulate = Fingerprint.generateSimulate(mid, userid.toString(), dfid, webglHash)
+
+        // AES 加密
+        val (aesEncrypted, aesKey) = if (vType == 23) {
+            Crypto.aesEncryptAuto(buildJsonObject { }.toString())
+        } else {
+            Crypto.aesEncryptAuto(buildJsonObject { put("code", verifycode) }.toString())
+        }
+
+        // RSA 加密 AES 密钥
+        val pk = Crypto.rsaEncrypt(
+            buildJsonObject { put("key", aesKey) }.toString().encodeToByteArray(),
+            Crypto.activePublicRasKey(executor.config)
+        )
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://verifyservice.kugou.com",
+                url = "/v4/verify_user_info",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("eventid", eventid)
+                    put("userid", userid)
+                    put("platid", 2)
+                    put("v_type", vType)
+                    put("wasm", 1)
+                    put("i", "")
+                    put("sid", simulate.sid)
+                    put("edt", simulate.edt)
+                    if (vType == 23) {
+                        put("verifycode", verifycode)
+                    } else {
+                        put("code", verifycode)
+                    }
+                    put("pk", pk)
+                    put("params", aesEncrypted)
+                },
+                params = mapOf("clientver" to 11510),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 生成 sid/edt 指纹并调用 verify_user_info
+     * 对齐 node module/sidedt.js
+     *
+     * @param eventid 事件 ID
+     * @param vType 验证类型：23 = SMS，32 = CAPTCHA
+     * @param verifycode 验证码
+     */
+    suspend fun generateSidEdt(
+        eventid: String = "",
+        vType: Int = 23,
+        verifycode: String = ""
+    ): KuGouResponse {
+        return verifyUserInfo(eventid, verifycode, vType)
     }
 }

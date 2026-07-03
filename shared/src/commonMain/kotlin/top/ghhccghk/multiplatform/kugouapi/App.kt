@@ -27,6 +27,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import top.ghhccghk.multiplatform.kugouapi.core.CookieJar
+import top.ghhccghk.multiplatform.kugouapi.core.Fingerprint.generateWebGLHash
 
 val config = KuGouConfig(isLite = true)
 /**
@@ -80,7 +81,12 @@ fun App(
                     ActionRow {
                         Input("userid", get("userid"), { inputs["userid"] = it; client.cookieJar.setUserid(it.toLongOrNull() ?: 0L) }, "用户ID")
                         Input("token", get("token"), { inputs["token"] = it; client.cookieJar.setToken(it) }, "Token")
-                        Btn("注册设备") { addLog("Auth:registerDev", client.auth.registerDev().body) }
+                        Btn("注册设备") {
+                            val webGLHash = generateWebGLHash()
+                            addLog("Auth:generateWebGLHash", "生成WebGL Hash: $webGLHash")
+                            client.cookieJar.setWebGLHash(webGLHash)
+                            addLog("Auth:registerDev", (client.auth.registerDev().body))
+                        }
                     }
 
                     Divider()
@@ -129,6 +135,17 @@ fun App(
                     ActionRow {
                         Input("openplat_code", get("openplat_code"), { inputs["openplat_code"] = it }, "微信Code")
                         Btn("开放平台登录") { addLog("Auth:loginByOpenPlat", client.auth.loginByOpenPlat(get("openplat_code")).body) }
+                    }
+                    ActionRow {
+                        Input("verify_eventid", get("verify_eventid"), { inputs["verify_eventid"] = it }, "EventID")
+                        Btn("验证码信息") { addLog("Auth:getVerifyInfo", client.auth.getVerifyInfo(get("verify_eventid")).body) }
+                    }
+                    ActionRow {
+                        Input("verify_eventid2", get("verify_eventid2"), { inputs["verify_eventid2"] = it }, "EventID")
+                        Input("verify_code", get("verify_code"), { inputs["verify_code"] = it }, "验证码")
+                        Input("verify_vtype", get("verify_vtype"), { inputs["verify_vtype"] = it }, "类型", "23")
+                        Btn("验证用户") { addLog("Auth:verifyUser", client.auth.verifyUserInfo(get("verify_eventid2"), get("verify_code"), get("verify_vtype", "23").toIntOrNull() ?: 23).body) }
+                        Btn("SidEdt") { addLog("Auth:generateSidEdt", client.auth.generateSidEdt(get("verify_eventid2"), get("verify_vtype", "23").toIntOrNull() ?: 23, get("verify_code")).body) }
                     }
 
                     Divider()
@@ -253,6 +270,11 @@ fun App(
                         Input("artist_honour_id", get("artist_honour_id"), { inputs["artist_honour_id"] = it }, "歌手ID", "3066")
                         Btn("荣誉") { addLog("Artist:getHonour", client.artist.getHonour(get("artist_honour_id", "3066")).body) }
                     }
+                    ActionRow {
+                        Input("singer_hotsize", get("singer_hotsize"), { inputs["singer_hotsize"] = it }, "热门数", "200")
+                        Input("singer_sextype", get("singer_sextype"), { inputs["singer_sextype"] = it }, "性别", "0")
+                        Btn("歌手列表") { addLog("Artist:getSingerList", client.artist.getSingerList(get("singer_hotsize", "200").toIntOrNull() ?: 200, get("singer_sextype", "0").toIntOrNull() ?: 0).body) }
+                    }
 
                     Divider()
 
@@ -293,27 +315,30 @@ fun App(
                         Input("playlist_remtracks_hash", get("playlist_remtracks_hash"), { inputs["playlist_remtracks_hash"] = it }, "Hash")
                         Btn("移除歌曲") { addLog("Playlist:removeTracks", client.playlist.removeTracks(get("playlist_remtracks_id"), get("playlist_remtracks_hash")).body) }
                     }
+                    ActionRow {
+                        Btn("主题歌单") { addLog("Playlist:getThemePlayLists", client.playlist.getThemePlayLists().body) }
+                    }
 
                     Divider()
 
                     // ============ 评论 ============
                     SectionHeader("评论")
                     ActionRow {
-                        Input("comment_music_id", get("comment_music_id"), { inputs["comment_music_id"] = it }, "MixSongID", "34796338")
-                        Btn("歌曲评论") { addLog("Comment:getMusic", client.comment.getMusicComments(get("comment_music_id", "34796338")).body) }
+                        Input("comment_music_id", get("comment_music_id"), { inputs["comment_music_id"] = it }, "MixSongID", "887235110")
+                        Btn("歌曲评论") { addLog("Comment:getMusic", client.comment.getMusicComments(get("comment_music_id", "887235110")).body) }
                     }
                     ActionRow {
-                        Input("comment_album_id", get("comment_album_id"), { inputs["comment_album_id"] = it }, "专辑ID")
-                        Btn("专辑评论") { addLog("Comment:getAlbum", client.comment.getAlbumComments(get("comment_album_id")).body) }
+                        Input("comment_album_id", get("comment_album_id"), { inputs["comment_album_id"] = it }, "专辑ID","7057732")
+                        Btn("专辑评论") { addLog("Comment:getAlbum", client.comment.getAlbumComments(get("comment_album_id","7057732")).body) }
                     }
                     ActionRow {
-                        Input("comment_playlist_id", get("comment_playlist_id"), { inputs["comment_playlist_id"] = it }, "歌单ID")
-                        Btn("歌单评论") { addLog("Comment:getPlaylist", client.comment.getPlaylistComments(get("comment_playlist_id")).body) }
+                        Input("comment_playlist_id", get("comment_playlist_id"), { inputs["comment_playlist_id"] = it }, "歌单ID","collection_3_1774359327_29_0")
+                        Btn("歌单评论") { addLog("Comment:getPlaylist", client.comment.getPlaylistComments(get("comment_playlist_id","collection_3_1774359327_29_0")).body) }
                     }
                     ActionRow {
-                        Input("comment_count_id", get("comment_count_id"), { inputs["comment_count_id"] = it }, "资源ID")
-                        Input("comment_count_type", get("comment_count_type"), { inputs["comment_count_type"] = it }, "类型", "music")
-                        Btn("数量") { addLog("Comment:getCount", client.comment.getCommentCount(get("comment_count_id"), get("comment_count_type", "music")).body) }
+                        Input("comment_count_id", get("comment_count_id"), { inputs["comment_count_id"] = it }, "歌曲Hash","1EEA9820D3F57E10161AFBB724A6F0E8")
+                        Input("comment_count_type", get("comment_count_type"), { inputs["comment_count_type"] = it }, "special_child_id", "1106144842")
+                        Btn("歌曲评论数") { addLog("Comment:getCount", client.comment.getCommentCount(get("comment_count_id","1EEA9820D3F57E10161AFBB724A6F0E8"), get("comment_count_type","1106144842")).body) }
                     }
                     ActionRow {
                         Input("comment_floor_rid", get("comment_floor_rid"), { inputs["comment_floor_rid"] = it }, "评论ID")
@@ -321,6 +346,16 @@ fun App(
                         Input("comment_floor_sid", get("comment_floor_sid"), { inputs["comment_floor_sid"] = it }, "MixSongID")
                         Input("comment_floor_type", get("comment_floor_type"), { inputs["comment_floor_type"] = it }, "类型", "music")
                         Btn("楼层") { addLog("Comment:getFloor", client.comment.getFloorComments(get("comment_floor_rid"), get("comment_floor_eid"), get("comment_floor_sid"), get("comment_floor_type", "music")).body) }
+                    }
+                    ActionRow {
+                        Input("comment_classify_id", get("comment_classify_id"), { inputs["comment_classify_id"] = it }, "MixSongID")
+                        Input("comment_classify_type", get("comment_classify_type"), { inputs["comment_classify_type"] = it }, "TypeId")
+                        Btn("分类评论") { addLog("Comment:getByClassify", client.comment.getMusicCommentsByClassify(get("comment_classify_id"), get("comment_classify_type")).body) }
+                    }
+                    ActionRow {
+                        Input("comment_hotword_id", get("comment_hotword_id"), { inputs["comment_hotword_id"] = it }, "MixSongID")
+                        Input("comment_hotword", get("comment_hotword"), { inputs["comment_hotword"] = it }, "热词")
+                        Btn("热词评论") { addLog("Comment:getByHotWord", client.comment.getMusicCommentsByHotWord(get("comment_hotword_id"), get("comment_hotword")).body) }
                     }
 
                     Divider()
