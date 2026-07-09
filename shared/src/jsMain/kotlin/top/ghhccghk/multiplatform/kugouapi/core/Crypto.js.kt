@@ -702,11 +702,15 @@ private fun platformAtob(str: String): String {
 
 private fun jsRsaOaepEncryptJs(spkiHex: String, dataJs: dynamic): dynamic {
     return js("""
-        (async function(spkiHex, data) {
+        (function(spkiHex, data) {
             var spkiBytes = new Uint8Array(spkiHex.match(/.{1,2}/g).map(function(b) { return parseInt(b, 16); }));
-            var cryptoKey = await crypto.subtle.importKey('spki', spkiBytes.buffer, {name: 'RSA-OAEP', hash: 'SHA-256'}, false, ['encrypt']);
-            var ct = await crypto.subtle.encrypt({name: 'RSA-OAEP'}, cryptoKey, data);
-            return Array.from(new Uint8Array(ct)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+            return crypto.subtle.importKey('spki', spkiBytes.buffer, {name: 'RSA-OAEP', hash: 'SHA-256'}, false, ['encrypt'])
+                .then(function(cryptoKey) {
+                    return crypto.subtle.encrypt({name: 'RSA-OAEP'}, cryptoKey, data);
+                })
+                .then(function(ct) {
+                    return Array.from(new Uint8Array(ct)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+                });
         })(spkiHex, dataJs)
     """)
 }

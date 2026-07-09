@@ -12,13 +12,13 @@
 - **多平台支持**: 统一的 API 调用接口，底层适配不同平台的 HTTP 与加密实现。
 - **协程优先**: 所有网络请求均采用 `suspend` 挂起函数，完美契合 Kotlin 协程流。
 - **全量加密对齐**: 严格对齐酷狗 Android/iOS 端的 MD5 签名、AES-CBC 与 RSA-PKCS1 加密算法。
-- **模块化设计**: 18 个 API 分类模块，113 个接口，按需调用。
+- **模块化设计**: 21 个 API 分类模块，161 个接口，按需调用。
 
 ---
 
-## 📦 已实现 API 模块状态（共 18 个模块 · 113 个 API）
+## 📦 已实现 API 模块状态（共 21 个模块 · 161 个 API）
 
-### Auth — 认证与身份（13 个）
+### Auth — 认证与身份（16 个）
 
 | 方法 | 对齐 Node.js 模块 | 说明 |
 | :--- | :--- | :--- |
@@ -35,6 +35,9 @@
 | `createWxLogin()` | `login_wx_create.js` | 微信登录 - 获取二维码 |
 | `checkWxLogin(uuid)` | `login_wx_check.js` | 微信登录 - 检查扫码状态 |
 | `loginByOpenPlat(code)` | `login_openplat.js` | 微信 OAuth 开放平台登录 |
+| `getVerifyInfo(eventid)` | `get_verify_info.js` | 获取验证码数据 |
+| `verifyUserInfo(eventid, verifycode, vType)` | `verify_user_info.js` | 验证用户信息（验证码提交） |
+| `generateSidEdt(eventid, vType, verifycode)` | `sidedt.js` | 生成 sid/edt 指纹并验证 |
 
 ### Search — 搜索（7 个）
 
