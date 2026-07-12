@@ -81,16 +81,26 @@ class SearchApi(private val executor: RequestExecutor) {
      */
     suspend fun searchSuggest(
         keywords: String,
+        albumTipCount: Long = 10,
+        correctTipCount: Long = 10,
+        mvTipCount: Long = 10,
+        musicTipCount: Long = 10,
     ): KuGouResponse {
         return executor.execute(
             KuGouRequest(
-                url = "/v1/search/suggest",
+                url = "/v2/getSearchTip",
                 method = HttpMethod.GET,
+                encryptType = EncryptType.ANDROID,
                 params = mapOf(
                     "keyword" to keywords,
+                    "AlbumTipCount" to albumTipCount,
+                    "CorrectTipCount" to correctTipCount ,
+                    "MVTipCount" to mvTipCount,
+                    "MusicTipCount" to musicTipCount ,
+                    "radiotip" to 1
                 ),
                 headers = mapOf(
-                    "x-router" to "complexsearch.kugou.com",
+                    "x-router" to "searchtip.kugou.com",
                 ),
             )
         )
