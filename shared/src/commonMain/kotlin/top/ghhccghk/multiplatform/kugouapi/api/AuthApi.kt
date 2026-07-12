@@ -523,7 +523,6 @@ class AuthApi(private val executor: RequestExecutor) {
         val clientTimeMs = currentTimeMillis()
         val token = executor.cookieJar.getToken()
         val userId = executor.cookieJar.getUserid()
-        println("Token:$token, UserId:$userId , ClientTimeMS:$clientTimeMs")
 
         val (encryptedParams, tempKey) = Crypto.aesEncryptAuto(buildJsonObject {
             put("token", token)
@@ -792,9 +791,9 @@ class AuthApi(private val executor: RequestExecutor) {
                 Crypto.activePublicRasKey(executor.config)
             ).uppercase()
 
-            val dev = executor.cookieJar["KUGOU_API_DEV"] ?: ""
+            val dev = executor.cookieJar.getDev()
             val guid = executor.cookieJar.getGuid()
-            val mac = executor.cookieJar["KUGOU_API_MAC"] ?: "02:00:00:00:00:00"
+            val mac = executor.cookieJar.getMac()
 
             val t2Key = "fd14b35e3f81af3817a20ae7adae7020"
             val t2Iv = "17a20ae7adae7020"
@@ -885,10 +884,6 @@ class AuthApi(private val executor: RequestExecutor) {
             client.close()
         }
     }
-
-    // ────────────────────────────────────────────────────────────────
-    // 新增：验证码相关
-    // ────────────────────────────────────────────────────────────────
 
     /**
      * 获取验证码数据
