@@ -172,7 +172,7 @@ fun App(
                     SectionHeader("歌曲")
                     ActionRow {
                         Input("song_hash", get("song_hash"), { inputs["song_hash"] = it }, "Hash")
-                        Btn("歌曲信息") { addLog("Song:getAudioInfo", client.song.getAudioInfo(get("song_hash", "E6B6478980F16C6A97491C781A327E7A")).body) }
+                        Btn("歌曲信息") { addLog("Song:getPrivilegeLite", client.song.getPrivilegeLite(get("song_hash", "E6B6478980F16C6A97491C781A327E7A")).body) }
                     }
                     ActionRow {
                         Input("song_lyric_id", get("song_lyric_id"), { inputs["song_lyric_id"] = it }, "歌词ID")

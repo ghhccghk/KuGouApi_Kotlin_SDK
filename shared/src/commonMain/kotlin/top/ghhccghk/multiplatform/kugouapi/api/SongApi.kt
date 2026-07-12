@@ -156,7 +156,7 @@ class SongApi(private val executor: RequestExecutor) {
     }
 
     /**
-     * 获取歌曲权限信息 (Lite 版)
+     * 获获取音乐详情
      */
     suspend fun getPrivilegeLite(hash: String, albumId: String = ""): KuGouResponse {
         val hashes = hash.split(",").filter { it.isNotEmpty() }
@@ -340,10 +340,10 @@ class SongApi(private val executor: RequestExecutor) {
         hash: String,
         albumAudioId: Long,
         freePart: Boolean = false,
-        vipToken: String = "",
         vipType: Int = 0
     ): KuGouResponse {
         val clientTime = currentTimeMillis()
+        val vipToken = executor.cookieJar.getVipToken()
         val userid = executor.cookieJar.getUserid()
         val mid = executor.cookieJar.getMid()
         val appId = executor.config.activeAppId
@@ -391,6 +391,7 @@ class SongApi(private val executor: RequestExecutor) {
                 url = "/v6/priv_url",
                 method = HttpMethod.POST,
                 data = data,
+                encryptKey = true,
                 encryptType = EncryptType.ANDROID
             )
         )

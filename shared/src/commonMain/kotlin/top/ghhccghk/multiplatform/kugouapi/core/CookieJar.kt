@@ -44,6 +44,7 @@ class CookieJar(private val config: KuGouConfig) {
     fun setMid(m: String) {_cookies["KUGOU_API_MID"] = m }
     fun setGuid(g: String) { _cookies["KUGOU_API_GUID"] = g }
     fun setDev(d: String) { _cookies["KUGOU_API_DEV"] = d }
+    fun setVipToken(v: String) { _cookies["vip_token"] = v }
     fun setWebGLHash(h: String) { _cookies["KUGOU_API_WEBGL"] = h }
 
 

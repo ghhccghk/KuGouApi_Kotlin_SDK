@@ -176,6 +176,10 @@ class MiscApi(private val executor: RequestExecutor) {
             KuGouRequest(
                 url = "/v1/server_now",
                 method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", executor.cookieJar.getUserid())
+                    put("token", executor.cookieJar.getToken())
+                },
                 params = mapOf("plat" to 3),
                 encryptType = EncryptType.ANDROID,
                 headers = mapOf("x-router" to "usercenter.kugou.com")
