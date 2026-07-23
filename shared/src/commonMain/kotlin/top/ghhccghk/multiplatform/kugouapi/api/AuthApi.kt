@@ -402,10 +402,11 @@ class AuthApi(private val executor: RequestExecutor) {
         val dateNow = currentTimeMillis()
         val actualToken = token.ifEmpty { executor.cookieJar.getToken() }
         val actualUserid = userid.ifEmpty { executor.cookieJar.getUserid() }
+        val isLite = executor.config.isLite
 
-        // 1. 使用固定 Key/IV 加密 clienttime + token → p3
-        val fixedKey = "90b8382a1bb4ccdcf063102053fd75b8"
-        val fixedIv = "f063102053fd75b8"
+        // 1. 使用 Key/IV 加密 clienttime + token → p3（isLite 时使用不同密钥）
+        val fixedKey = if (isLite) "c24f74ca2820225badc01946dba4fdf7" else "90b8382a1bb4ccdcf063102053fd75b8"
+        val fixedIv = if (isLite) "adc01946dba4fdf7" else "f063102053fd75b8"
         val p3Input = buildJsonObject {
             put("clienttime", dateNow / 1000)
             put("token", actualToken)
@@ -424,22 +425,41 @@ class AuthApi(private val executor: RequestExecutor) {
             Crypto.activePublicRasKey(executor.config)
         )
 
-        // 4. 构建请求参数
+        // 4. isLite 时计算 t1 / t2
+        val t2 = if (isLite) {
+            val guid = executor.cookieJar.getGuid()
+            val mac = executor.cookieJar.getMac()
+            val dev = executor.cookieJar.getDev()
+            Crypto.aesEncryptWith(
+                "$guid|0f607264fc6318a92b9e13c65db7cd3c|$mac|$dev|$dateNow",
+                "fd14b35e3f81af3817a20ae7adae7020", "17a20ae7adae7020"
+            )
+        } else "0"
+
+        val t1Plain = executor.cookieJar["t1"]?.let { "$it|$dateNow" } ?: "|$dateNow"
+        val t1 = if (isLite) Crypto.aesEncryptWith(
+            t1Plain, "5e4ef500e9597fe004bd09a46d8add98", "04bd09a46d8add98"
+        ) else "0"
+
+        // 5. 构建请求参数
         val dataMap = buildJsonObject {
             put("dfid", executor.cookieJar.getDfid())
             put("p3", p3)
             put("plat", 1)
-            put("t1", 0)
-            put("t2", 0)
+            put("t1", t1)
+            put("t2", t2)
             put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
             put("pk", pk)
             put("params", paramsHex)
             put("userid", actualUserid)
             put("clienttime_ms", dateNow)
+            if (isLite) {
+                put("dev", executor.cookieJar.getDev())
+            }
         }
 
-        // 5. 发送请求
-        return executor.execute(
+        // 6. 发送请求并解密 secu_params
+        val response = executor.execute(
             KuGouRequest(
                 baseUrl = "http://login.user.kugou.com",
                 url = "/v5/login_by_token",
@@ -448,6 +468,47 @@ class AuthApi(private val executor: RequestExecutor) {
                 encryptType = EncryptType.ANDROID,
             )
         )
+
+        if (response.status == 200) {
+            val body = response.body
+            val status = body["status"]?.jsonPrimitive?.intOrNull
+            if (status == 1) {
+                val data = body["data"]?.jsonObject
+                val secuParams = data?.get("secu_params")?.jsonPrimitive?.content
+                println("KuGou secu_params raw=$secuParams")
+                if (!secuParams.isNullOrEmpty()) {
+                    try {
+                        val decrypted = Crypto.aesDecryptWithSeed(secuParams, tempKey)
+                        println("KuGou decrypted=$decrypted")
+                        val tokenObj = try {
+                            Json.parseToJsonElement(decrypted) as? JsonObject
+                        } catch (e: Exception) {
+                            println("KuGou tokenObj parse failed: $e")
+                            null
+                        }
+                        val mergedData = buildJsonObject {
+                            data.forEach { (k, v) -> put(k, v) }
+                            if (tokenObj != null) {
+                                tokenObj.forEach { (k, v) -> put(k, v) }
+                            } else {
+                                put("token", decrypted)
+                            }
+                        }
+                        val mergedBody = buildJsonObject {
+                            body.forEach { (k, v) ->
+                                if (k == "data") put(k, mergedData) else put(k, v)
+                            }
+                        }
+                        return response.copy(body = mergedBody)
+                    } catch (e: Exception) {
+                        println("KuGou merge failed: $e")
+                    }
+                }
+            } else {
+                println("KuGou login failed, status=$status, body=$body")
+            }
+        }
+        return response
     }
 
     // ============================================================

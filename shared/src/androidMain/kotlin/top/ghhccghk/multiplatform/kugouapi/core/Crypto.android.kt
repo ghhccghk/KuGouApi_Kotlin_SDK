@@ -61,18 +61,34 @@ actual object Crypto {
 
     actual suspend fun rsaEncrypt(data: ByteArray, publicKeyPem: String): String = withContext(Dispatchers.IO) {
         val keySpec = getRsaPublicKeySpec(publicKeyPem)
-        val message = BigInteger(1, data)
-        val encrypted = message.modPow(keySpec.publicExponent, keySpec.modulus)
         val keyLength = (keySpec.modulus.bitLength() + 7) / 8
+
+        if (data.size > keyLength) {
+            throw IllegalArgumentException("Data length exceeds key size")
+        }
+
+        // 关键修复：明文先 pad 到 keyLength 字节，明文在前，尾部补 0（对齐 JS 的 padded.set(buffer)）
+        val paddedInput = if (data.size < keyLength) {
+            ByteArray(keyLength).also { System.arraycopy(data, 0, it, 0, data.size) }
+        } else {
+            data
+        }
+
+        val message = BigInteger(1, paddedInput)
+        val encrypted = message.modPow(keySpec.publicExponent, keySpec.modulus)
+
         val result = encrypted.toByteArray()
-        val padded = if (result.size < keyLength) {
+        val paddedOutput = if (result.size < keyLength) {
             val arr = ByteArray(keyLength)
             System.arraycopy(result, 0, arr, keyLength - result.size, result.size)
             arr
         } else if (result.size > keyLength) {
             result.copyOfRange(result.size - keyLength, result.size)
-        } else result
-        padded.joinToString("") { "%02x".format(it) }
+        } else {
+            result
+        }
+
+        paddedOutput.joinToString("") { "%02x".format(it) }
     }
 
     actual suspend fun rsaEncryptPkcs1(data: ByteArray, publicKeyPem: String): String = withContext(Dispatchers.IO) {
