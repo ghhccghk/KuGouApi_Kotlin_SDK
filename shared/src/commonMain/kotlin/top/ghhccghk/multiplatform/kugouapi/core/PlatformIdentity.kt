@@ -76,16 +76,19 @@ internal object PlatformIdentity {
             val rawGuid = generateGuid()
             val hashedGuid = Crypto.md5(rawGuid)
             cookieJar["KUGOU_API_GUID"] = hashedGuid
-            cookieJar["KUGOU_API_MID"] = calculateMid(hashedGuid)
+        }
+        if (cookieJar.getWebGLHash().isEmpty()) {
+            cookieJar["KUGOU_API_WEBGL"] = generateRandomString(16).lowercase()
+        }
+        if (cookieJar.getMid().isEmpty() && cookieJar.getGuid().isNotEmpty()) {
+            val guid = cookieJar.getGuid()
+            cookieJar["KUGOU_API_MID"] = calculateMid(guid)
         }
         if (cookieJar.getDev().isEmpty()) {
             cookieJar["KUGOU_API_DEV"] = generateRandomString(10).uppercase()
         }
         if (cookieJar["KUGOU_API_MAC"].isNullOrEmpty()) {
             cookieJar["KUGOU_API_MAC"] = "02:00:00:00:00:00"
-        }
-        if (cookieJar.getDfid() == "-") {
-            cookieJar["dfid"] = "-"
         }
     }
 }
