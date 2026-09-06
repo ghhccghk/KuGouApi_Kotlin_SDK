@@ -366,4 +366,188 @@ class PlaylistApi(private val executor: RequestExecutor) {
         )
 
     }
+
+    /**
+     * 导入歌单 - 添加任务
+     * 对齐 module/import_playlist.js (add_task)
+     *
+     * @param url 歌单链接（taskType=0时）
+     * @param listId 歌单ID（taskType=1时）
+     * @param listName 歌单名称
+     * @param taskType 任务类型：0=链接，1=ID
+     * @param source 来源
+     */
+    suspend fun importPlaylistAddTask(
+        url: String = "",
+        listId: Long = 0,
+        listName: String = "",
+        taskType: Int = 0,
+        source: Int = 3
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+        val taskSn = ""
+
+        val data = buildJsonObject {
+            put("userid", userid)
+            put("token", token)
+            put("source", source)
+            put("task_type", taskType)
+            if (taskType == 0) {
+                put("url", url)
+            } else {
+                put("listid", listId)
+                if (listName.isNotEmpty()) put("list_name", listName)
+                put("task_sn", taskSn)
+            }
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/assetservice/import/v1/add_task",
+                method = HttpMethod.POST,
+                data = data,
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = true
+            )
+        )
+    }
+
+    /**
+     * 导入歌单 - 提交图片验证码
+     * 对齐 module/import_playlist.js (submit_img)
+     *
+     * @param imgBase64 图片Base64编码
+     * @param taskSn 任务序列号
+     */
+    suspend fun importPlaylistSubmitImg(
+        imgBase64: String,
+        taskSn: String
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+
+        // 移除 data:image 前缀
+        val cleanBase64 = imgBase64.replace(Regex("^data:image/[^;]+;base64,"), "")
+
+        val data = buildJsonObject {
+            put("userid", userid)
+            put("token", token)
+            put("img_base64", cleanBase64)
+            put("task_sn", taskSn)
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/assetservice/import/v1/submit_img",
+                method = HttpMethod.POST,
+                data = data,
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = true
+            )
+        )
+    }
+
+    /**
+     * 导入歌单 - 获取任务数量
+     * 对齐 module/import_playlist.js (task_count)
+     *
+     * @param classify 分类
+     */
+    suspend fun importPlaylistTaskCount(
+        classify: Int = 1
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+
+        val data = buildJsonObject {
+            put("userid", userid)
+            put("token", token)
+            put("classify", classify)
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/assetservice/import/v1/task_count",
+                method = HttpMethod.POST,
+                data = data,
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = true
+            )
+        )
+    }
+
+    /**
+     * 导入歌单 - 查询任务状态
+     * 对齐 module/import_playlist.js (query_task_status)
+     *
+     * @param ids 任务ID列表
+     */
+    suspend fun importPlaylistQueryTaskStatus(
+        ids: List<Long>
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+
+        val data = buildJsonObject {
+            put("userid", userid)
+            put("token", token)
+            putJsonArray("ids") {
+                ids.forEach { add(it) }
+            }
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/assetservice/import/v1/query_task_status",
+                method = HttpMethod.POST,
+                data = data,
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = true
+            )
+        )
+    }
+
+    /**
+     * 导入歌单 - 查询任务详情
+     * 对齐 module/import_playlist.js (query_task)
+     *
+     * @param listId 歌单ID
+     * @param page 页码
+     * @param pageSize 每页数量
+     * @param showMissed 是否显示缺失歌曲
+     */
+    suspend fun importPlaylistQueryTask(
+        listId: String,
+        page: Int = 1,
+        pageSize: Int = 30,
+        showMissed: Boolean = true
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid()
+        val token = executor.cookieJar.getToken()
+
+        val data = buildJsonObject {
+            put("userid", userid)
+            put("token", token)
+            put("listid", listId)
+            put("page", page.coerceAtLeast(1))
+            put("pagesize", pageSize.coerceAtLeast(1))
+            put("show_missed", if (showMissed) 1 else 0)
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/pubsongs/v1/query_task",
+                method = HttpMethod.POST,
+                data = data,
+                encryptType = EncryptType.ANDROID,
+                clearDefaultParams = true
+            )
+        )
+    }
 }

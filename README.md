@@ -1,4 +1,4 @@
-# KuGou Music API Kotlin Multiplatform SDK
+﻿# KuGou Music API Kotlin Multiplatform SDK
 ![Maven Central Version](https://img.shields.io/maven-central/v/top.ghhccghk.multiplatform.kugouapi/kugouapi-kmp)
 
 
@@ -38,6 +38,10 @@
 | `getVerifyInfo(eventid)` | `get_verify_info.js` | 获取验证码数据 |
 | `verifyUserInfo(eventid, verifycode, vType)` | `verify_user_info.js` | 验证用户信息（验证码提交） |
 | `generateSidEdt(eventid, vType, verifycode)` | `sidedt.js` | 生成 sid/edt 指纹并验证 |
+| `userVerify()` | `user_verify.js` | 用户验证，获取 auth token |
+| `createQqQrCode()` | `login_qq_qr_create.js` | QQ 扫码登录 - 生成二维码 |
+| `checkQqQrCode(qrsig, ptqrtoken, ...)` | `login_qq_qr_check.js` | QQ 扫码登录 - 检测扫码状态 |
+| `loginByQq(openid, accessToken)` | `login_qq.js` | QQ 授权登录 |
 
 ### Search — 搜索（7 个）
 
@@ -67,6 +71,9 @@
 | `getSongClimax(hash)` | — | 获取歌曲高潮部分 |
 | `getSongRanking(audioId)` | — | 歌曲成绩单 |
 | `getSongRankingFilter(audioId, ...)` | — | 歌曲榜单过滤 |
+| `getSongAuth(hash, albumAudioId, auth)` | `song_auth.js` | 获取歌曲鉴权信息 |
+| `getSongUrlAuth(hash, albumAudioId, ...)` | `song_url_auth.js` | 获取音乐URL（鉴权版） |
+| `getSongUrlAuthMerge(hash, albumAudioId, ...)` | `song_url_auth_merge.js` | 获取音乐URL（合并鉴权版） |
 
 ### Album — 专辑（4 个）
 
@@ -90,6 +97,7 @@
 | `unfollow(id)` | `artist_unfollow.js` | 取消关注歌手 |
 | `getFollowNewSongs(userId, page, sort)` | `artist_follow_newsongs.js` | 关注歌手新歌 |
 | `getHonour(id, page, pageSize)` | `artist_honour.js` | 获取歌手荣誉详情 |
+| `getAudiosNew(id, page, pageSize, sort)` | `artist_audios_new.js` | 获取歌手单曲（新版，支持多歌手） |
 
 ### Playlist — 歌单（10 个）
 
@@ -139,6 +147,7 @@
 | `getRecommendSongs(hash)` | `recommend_songs.js` | 推荐相似歌曲 |
 | `getPersonalFm(action, mode, ...)` | `personal_fm.js` | 私人 FM |
 | `getAiRecommend(albumId)` | `ai_recommend.js` | AI 智能推荐 |
+| `getAiRecommendSong(page, pageSize)` | `ai_recommend_song.js` | AI 推荐歌曲 |
 
 ### Radio — 电台/FM（5 个）
 
@@ -171,6 +180,15 @@
 | `getFavoriteCount(userId)` | `favorite_count.js` | 获取收藏数量 |
 | `uploadPlayHistory(songId, fileId, ...)` | `playhistory_upload.js` | 上传播放记录 |
 
+### UserCloud — 用户云盘（4 个）
+
+| 方法 | 对齐 Node.js 模块 | 说明 |
+| :--- | :--- | :--- |
+| `deleteCloudFiles(fileIds, albumAudioIds)` | `user_cloud_del.js` | 删除云盘音乐文件 |
+| `matchCloudMusic(hash, appid, clientver)` | `user_cloud_match.js` | 匹配云盘音乐 |
+| `matchCloudMusicByHash(hashes, ...)` | — | 云盘上传前曲库匹配 |
+| `uploadCloudFile(fileData, ...)` | `user_cloud_upload.js` | 上传音乐文件到云盘 |
+
 ### Image — 图片（2 个）
 
 | 方法 | 对齐 Node.js 模块 | 说明 |
@@ -194,6 +212,12 @@
 | `getRankRecommend()` | `longaudio_rank_recommend.js` | 有声书排行榜推荐 |
 | `getVipRecommend()` | `longaudio_vip_recommend.js` | 有声书 VIP 推荐 |
 | `getWeekRecommend()` | `longaudio_week_recommend.js` | 有声书每周推荐 |
+| `getAlbumList(tagId, gender, status, sort, ...)` | `longaudio_album_list.js` | 听书免费书库/分类榜单 |
+| `search(keywords, page, pageSize, userid)` | `longaudio_search.js` | 听书搜索 |
+| `getTagList()` | `longaudio_tag_list.js` | 听书分类标签列表 |
+| `getAlbumList(tagId, gender, status, sort, ...)` | `longaudio_album_list.js` | 听书免费书库/分类榜单 |
+| `search(keywords, page, pageSize, userid)` | `longaudio_search.js` | 听书搜索 |
+| `getTagList()` | `longaudio_tag_list.js` | 听书分类标签列表 |
 
 ### Misc — 杂项（7 个）
 

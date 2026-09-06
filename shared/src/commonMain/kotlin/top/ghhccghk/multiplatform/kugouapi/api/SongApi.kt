@@ -459,4 +459,133 @@ class SongApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+
+    /**
+     * 获取歌曲鉴权信息
+     * 对齐 module/song_auth.js
+     *
+     * @param hash 歌曲哈希
+     * @param albumAudioId 专辑音频ID
+     * @param auth 已有的鉴权信息（可选）
+     */
+    suspend fun getSongAuth(
+        hash: String,
+        albumAudioId: Long,
+        auth: String = ""
+    ): KuGouResponse {
+        val authorization = auth.ifEmpty { executor.cookieJar["auth"] ?: "" }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "http://trackercdngz.kugou.com/",
+                url = "/v1/authorization",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "authorization" to authorization,
+                    "module_id" to 51,
+                    "album_audio_id" to albumAudioId,
+                    "clientver" to 11561,
+                    "hash" to hash.lowercase()
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+    /**
+     * 获取音乐URL（鉴权版）
+     * 对齐 module/song_url_auth.js
+     *
+     * @param hash 歌曲哈希
+     * @param albumAudioId 专辑音频ID
+     * @param quality 音质
+     * @param auth 鉴权信息
+     * @param openTime 开放时间
+     */
+    suspend fun getSongUrlAuth(
+        hash: String,
+        albumAudioId: Long,
+        quality: Int = 128,
+        auth: String = "",
+        openTime: Long = 0
+    ): KuGouResponse {
+        val isLite = executor.config.isLite
+        val pageId = if (isLite) 967177915 else 151369488
+        val defaultPPageId = if (isLite) "356753938,823673182,967485191" else "463467626,350369493,788954147"
+
+        val params = mapOf(
+            "album_id" to 0,
+            "area_code" to 1,
+            "module" to "",
+            "hash" to hash.lowercase(),
+            "need_m" to 0,
+            "ssa_flag" to "is_fromtrack",
+            "version" to 11430,
+            "open_time" to openTime,
+            "ptype" to 0,
+            "need_ogg" to 1,
+            "page_id" to pageId,
+            "auth" to auth,
+            "mtype" to 0,
+            "quality" to quality,
+            "album_audio_id" to albumAudioId,
+            "behavior" to "play",
+            "pid" to (if (isLite) 411 else 2),
+            "module_id" to 51,
+            "cmd" to 26,
+            "ppage_id" to defaultPPageId,
+            "clientver" to 11561,
+            "pidversion" to 3001,
+            "cdnBackup" to 1
+        )
+
+        return executor.execute(
+            KuGouRequest(
+                url = "/tracker/v5/url",
+                method = HttpMethod.GET,
+                params = params,
+                encryptType = EncryptType.ANDROID,
+                encryptKey = true,
+                notSignature = true
+            )
+        )
+    }
+
+    /**
+     * 获取音乐URL（合并鉴权版）
+     * 先获取 auth/open_time，再获取播放链接
+     * 对齐 module/song_url_auth_merge.js
+     *
+     * @param hash 歌曲哈希
+     * @param albumAudioId 专辑音频ID
+     * @param quality 音质
+     * @param auth 鉴权信息（可选）
+     */
+    suspend fun getSongUrlAuthMerge(
+        hash: String,
+        albumAudioId: Long,
+        quality: Int = 128,
+        auth: String = ""
+    ): KuGouResponse {
+        // 先获取 auth 和 open_time
+        val authResponse = getSongAuth(hash, albumAudioId, auth)
+        val authData = authResponse.body["data"]?.jsonObject
+        val actualAuth = authData?.get("auth")?.jsonPrimitive?.content ?: ""
+        val openTime = authData?.get("open_time")?.jsonPrimitive?.longOrNull ?: 0L
+
+        if (actualAuth.isEmpty() && openTime == 0L) {
+            return KuGouResponse(
+                status = 502,
+                body = buildJsonObject {
+                    put("status", 0)
+                    put("error", "获取 auth 和 open_time 失败")
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        }
+
+        // 再获取播放链接
+        return getSongUrlAuth(hash, albumAudioId, quality, actualAuth, openTime)
+    }
 }

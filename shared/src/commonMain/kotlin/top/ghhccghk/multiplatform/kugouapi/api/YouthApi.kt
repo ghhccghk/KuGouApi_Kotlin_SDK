@@ -372,4 +372,35 @@ class YouthApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 获取频道歌曲列表（新版）
+     * 对齐 module/youth_channel_song_list.js
+     *
+     * @param globalCollectionId 频道全局收藏 ID
+     * @param page 页码
+     * @param pageSize 每页数量
+     */
+    suspend fun getChannelSongList(
+        globalCollectionId: String,
+        page: Int = 1,
+        pageSize: Int = 20
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://youth.kugou.com",
+                url = "/api/channel/v1/channel_get_song_list",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "global_collection_id" to globalCollectionId,
+                    "pagesize" to pageSize,
+                    "page" to page,
+                    "types" to 2,
+                    "is_filter" to 0,
+                    "apiver" to 3
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
 }

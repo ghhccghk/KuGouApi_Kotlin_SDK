@@ -273,7 +273,27 @@ class RecommendApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * AI 推荐歌曲
+     * 对齐 module/ai_recommend_song.js
+     *
+     * @param page 页码，默认 1
+     * @param pageSize 每页条数，默认 30
+     */
+    suspend fun getAiRecommendSong(page: Int = 1, pageSize: Int = 30): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/concepts/v1/ai/recommend_song",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("apiver", 2)
+                    put("source", 2)
+                    put("pagesize", pageSize)
+                    put("page", page)
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
 }
-
-
-

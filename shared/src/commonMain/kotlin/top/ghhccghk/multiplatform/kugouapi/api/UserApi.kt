@@ -3,6 +3,7 @@ package top.ghhccghk.multiplatform.kugouapi.api
 import top.ghhccghk.multiplatform.kugouapi.core.*
 import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
+import kotlin.random.Random
 
 /**
  * 用户相关 API (历史、收藏、信息等)
@@ -455,5 +456,207 @@ class UserApi(private val executor: RequestExecutor) {
                 encryptType = EncryptType.ANDROID
             )
         )
+    }
+
+    /**
+     * 获取我的详细信息
+     * 对齐 module/user_info.js
+     *
+     * 注意：此方法需要用户登录
+     */
+    suspend fun getUserInfo(): KuGouResponse {
+        val token = executor.cookieJar.getToken()
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val clienttime = currentTimeMillis()
+        val mid = executor.cookieJar.getMid()
+
+        val p = Crypto.rsaEncrypt(
+            buildJsonObject {
+                put("clienttime", clienttime)
+                put("token", token)
+            }.toString().encodeToByteArray(),
+            Crypto.activePublicRasKey(executor.config)
+        ).uppercase()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "http://relation.user.kugou.com",
+                url = "/v1/get_my_userinfo",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("p", p)
+                    put("appid", executor.config.activeAppId)
+                    put("mid", mid)
+                    put("clientver", executor.config.activeClientVersion)
+                    put("source", 0)
+                    put("clienttime", clienttime)
+                    put("uuid", "-")
+                    put("userid", userid)
+                    put("key", RequestSigner(executor.config).signParamsKey(clienttime))
+                },
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("Host" to "relation.user.kugou.com"),
+                clearDefaultParams = true
+            )
+        )
+    }
+
+    /**
+     * 获取用户听歌等级信息
+     * 对齐 module/user_grade_info.js
+     *
+     * @param protocol 协议版本：v2（lite）或 v4（标准版）
+     * @param d_sec 本地累计听歌秒数（上报模式）
+     * @param diff_sec 上次同步后的新增秒数（上报模式）
+     */
+    suspend fun getUserGradeInfo(
+        protocol: String = if (executor.config.isLite) "v2" else "v4",
+        d_sec: Long? = null,
+        diff_sec: Long? = null
+    ): KuGouResponse {
+        val token = executor.cookieJar.getToken()
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val mid = executor.cookieJar.getMid()
+        val dfid = executor.cookieJar.getDfid()
+        val clienttime = currentTimeMillis() / 1000
+
+        if (protocol == "v2") {
+            // v2 协议（lite 版本）
+            val key = Crypto.md5("")
+
+            val data = buildJsonObject {
+                put("mid", mid)
+                put("type", 1)
+                put("uuid", "-")
+                put("userid", userid)
+
+                if (d_sec != null && diff_sec != null) {
+                    // 上报模式
+                    val y_type = 0
+                    val m_type = 0
+                    val md5Value = Crypto.md5("")
+                    val p = Crypto.rsaEncrypt(
+                        buildJsonObject {
+                            put("token", token)
+                            put("md5", md5Value)
+                        }.toString().encodeToByteArray(),
+                        Crypto.activePublicRasKey(executor.config)
+                    ).uppercase()
+                    put("d_sec", d_sec)
+                    put("diff_sec", diff_sec)
+                    put("y_type", y_type)
+                    put("m_type", m_type)
+                    put("p", p)
+                } else {
+                    // 查询模式
+                    val p = Crypto.rsaEncrypt(
+                        buildJsonObject {
+                            put("clienttime", clienttime)
+                            put("userid", userid)
+                        }.toString().encodeToByteArray(),
+                        Crypto.activePublicRasKey(executor.config)
+                    ).uppercase()
+                    put("p", p)
+                }
+
+                put("appid", executor.config.activeAppId)
+                put("clientver", executor.config.activeClientVersion)
+                put("clienttime", clienttime)
+                put("key", key)
+            }
+
+            return executor.execute(
+                KuGouRequest(
+                    baseUrl = "http://userinfo.user.kugou.com",
+                    url = "/v2/get_grade_info",
+                    method = HttpMethod.POST,
+                    data = data,
+                    params = mapOf("dfid" to dfid),
+                    encryptType = EncryptType.ANDROID,
+                    clearDefaultParams = true,
+                    notSignature = true,
+                    headers = mapOf(
+                        "Content-Type" to "text/plain; charset=ISO-8859-1",
+                        "KG-THash" to Random.nextInt(0, 0xFFFFFFF).toString(16).padStart(7, '0'),
+                        "KG-Rec" to "1",
+                        "KG-RC" to "1"
+                    )
+                )
+            )
+        } else {
+            // v4 协议（标准版）
+            val ms = currentTimeMillis()
+            val appKey = if (executor.config.isLite) "LnT6xpN3khm36zse0QzvmgTZ3waWdRSA" else "OIlwieks28dk2k092lksi2UIkp"
+
+            val y_type = 0
+            val m_type = 0
+            val actualDSec = d_sec ?: 0
+            val actualDiffSec = diff_sec ?: 0
+            val md5Value = Crypto.md5("")
+
+            val aesSeed = PlatformIdentity.generateRandomString(16).lowercase().substring(0, 16)
+            val seedMd5 = Crypto.md5(aesSeed)
+            val paramsEnc = Crypto.aesEncryptBase64(
+                buildJsonObject {
+                    put("userid", userid.toString())
+                    put("token", token)
+                    put("md5", md5Value)
+                }.toString(),
+                seedMd5.substring(0, 32),
+                seedMd5.substring(16, 32)
+            )
+
+            val pk = Crypto.rsaEncrypt(
+                buildJsonObject {
+                    put("clienttime_ms", ms)
+                    put("key", aesSeed)
+                }.toString().encodeToByteArray(),
+                Crypto.activePublicRasKey(executor.config)
+            )
+
+            val body = buildJsonObject {
+                put("plat", 1)
+                put("userid", userid.toString())
+                put("clienttime_ms", ms)
+                put("type", 0)
+                put("d_sec", actualDSec)
+                put("diff_sec", actualDiffSec)
+                put("y_type", y_type)
+                put("m_type", m_type)
+                put("pk", pk)
+                put("params", paramsEnc)
+                put("medal", 0)
+            }
+
+            val bodyStr = body.toString()
+            val signParams = mapOf(
+                "clienttime" to clienttime,
+                "mid" to mid,
+                "dfid" to dfid,
+                "uuid" to "-",
+                "appid" to executor.config.activeAppId,
+                "clientver" to executor.config.activeClientVersion
+            )
+            val signStr = signParams.keys.sorted().joinToString("") { k -> "=" }
+            val signature = Crypto.md5("")
+
+            return executor.execute(
+                KuGouRequest(
+                    baseUrl = "https://userinfoservice.kugou.com",
+                    url = "/v4/get_grade_info",
+                    method = HttpMethod.POST,
+                    data = body,
+                    params = signParams + ("signature" to signature),
+                    encryptType = EncryptType.ANDROID,
+                    clearDefaultParams = true,
+                    notSignature = true,
+                    headers = mapOf(
+                        "Content-Type" to "application/json; charset=UTF-8",
+                        "KG-DEVID" to mid,
+                        "KG-CLIENTTIMEMS" to ms.toString()
+                    )
+                )
+            )
+        }
     }
 }

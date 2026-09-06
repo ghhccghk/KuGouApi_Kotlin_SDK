@@ -321,4 +321,43 @@ class ArtistApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 获取歌手单曲（新版接口）
+     * 返回每条歌曲的作者列表，支持多歌手
+     * 对齐 module/artist_audios_new.js
+     *
+     * @param id 歌手ID
+     * @param page 页码
+     * @param pageSize 每页条数（上限100）
+     * @param sort 排序：hot=最热，new=最新
+     */
+    suspend fun getAudiosNew(
+        id: String,
+        page: Int = 1,
+        pageSize: Int = 30,
+        sort: String = "new"
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "https://gateway.kugou.com",
+                url = "/openapi/kmr/v2/audio_group/author",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "author_id" to id,
+                    "area_code" to "all",
+                    "sort" to (if (sort == "hot") 1 else 2),
+                    "page" to page,
+                    "pagesize" to pageSize.coerceAtMost(100),
+                    "replace_api_version" to 1,
+                    "mvdata_need" to 1,
+                    "show_audio_honor" to 1,
+                    "show_audio_tag" to 1,
+                    "replace_need" to 1
+                ),
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("kg-tid" to "36")
+            )
+        )
+    }
 }

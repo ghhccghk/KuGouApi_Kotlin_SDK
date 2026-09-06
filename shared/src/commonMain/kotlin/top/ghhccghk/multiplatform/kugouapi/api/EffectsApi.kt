@@ -155,4 +155,69 @@ class EffectsApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 获取音效详情
+     * 对齐 module/get_mode_info.js
+     *
+     * @param modelId 音效模型ID
+     * @param page 页码
+     * @param pageSize 每页条数
+     */
+    suspend fun getModeInfo(
+        modelId: Int = 0,
+        page: Int = 1,
+        pageSize: Int = 30
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = "http://mobileservice.kugou.com",
+                url = "/api/v5/earphone/get_model_info",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "model_id" to modelId,
+                    "req_src" to "collection",
+                    "earphone_vip" to 1,
+                    "sound_ver" to 2,
+                    "key" to RequestSigner(executor.config).signParamsKey(currentTimeMillis()),
+                    "page" to page,
+                    "pagesize" to pageSize
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取社区音效
+     * 对齐 module/get_model.js
+     *
+     * @param page 页码
+     * @param pageSize 每页条数
+     * @param sort 排序方式
+     */
+    suspend fun getModel(
+        page: Int = 1,
+        pageSize: Int = 30,
+        sort: Int = 2
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                url = "/ocean/v6/sound/list",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "super_vip" to 1,
+                    "sound_ver" to 2,
+                    "page" to page,
+                    "pagesize" to pageSize,
+                    "apiver" to 3,
+                    "classify" to "2,3",
+                    "plat" to 2,
+                    "privilege" to 1,
+                    "sort" to sort
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
 }

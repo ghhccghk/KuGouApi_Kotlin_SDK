@@ -28,6 +28,8 @@ data class KuGouConfig(
         val WX_LITE_APP_ID = "wx72b795aca60ad321"
         val WX_SECRET = "4efcab88b700769e376e3f6087b8abc9"
         val WX_LITE_SECRET = "33e486041e5e25729a4e3d2da7502f9a"
+        val QQ_APP_ID = "102016227"
+        val QQ_LITE_APP_ID = "102016227"
         val SRC_APP_ID = 2919
         val API_VER = 20
     }

@@ -18,10 +18,13 @@ import top.ghhccghk.multiplatform.kugouapi.model.EncryptType
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.put
 import top.ghhccghk.multiplatform.kugouapi.core.activePublicRasKey
 import top.ghhccghk.multiplatform.kugouapi.core.Fingerprint
+import kotlin.random.Random
+
 /**
  * 认证与身份 API
  * 提供设备注册、密码登录、手机验证码登录、Token 刷新、二维码登录等功能。
@@ -1050,5 +1053,474 @@ class AuthApi(private val executor: RequestExecutor) {
         verifycode: String = ""
     ): KuGouResponse {
         return verifyUserInfo(eventid, verifycode, vType)
+    }
+
+    /**
+     * 用户验证（获取 auth token）
+     * 对齐 module/user_verify.js
+     *
+     * 注意：成功时会自动将 auth 写入 CookieJar
+     */
+    suspend fun userVerify(): KuGouResponse {
+        val response = executor.execute(
+            KuGouRequest(
+                baseUrl = "http://trackercdngz.kugou.com",
+                url = "/v1/user_verify",
+                method = HttpMethod.GET,
+                params = mapOf("module_id" to 51),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+
+        // 如果成功，自动保存 auth 到 cookie
+        val body = response.body
+        if (body["status"]?.jsonPrimitive?.intOrNull == 1) {
+            val data = body["data"]?.jsonObject
+            val auth = data?.get("auth")?.jsonPrimitive?.contentOrNull
+            if (!auth.isNullOrEmpty()) {
+                executor.cookieJar.setAuth(auth)
+            }
+        }
+
+        return response
+    }
+
+    // ============================================================
+    //  QQ 扫码登录
+    //  对齐 module/login_qq_qr_create.js, login_qq_qr_check.js, login_qq.js
+    // ============================================================
+
+    /**
+     * QQ 扫码登录 - 生成二维码
+     * 对齐 module/login_qq_qr_create.js
+     *
+     * 返回二维码图片 Base64、qrsig、ptqrtoken 等参数，
+     * 需要传递给 [checkQqQrCode] 进行轮询检测。
+     */
+    suspend fun createQqQrCode(): KuGouResponse {
+        val isLite = executor.config.isLite
+        val clientId = if (isLite) KuGouConfig.QQ_LITE_APP_ID else KuGouConfig.QQ_APP_ID
+        val time = currentTimeMillis() / 1000
+        val apkSigMd5 = "fe4a24d80fcf253a00676a808f62c2c6"
+        val sign = Crypto.md5("_")
+
+        val client = HttpClient()
+        try {
+            // 1. 获取授权页面
+            val authParams = buildString {
+                append("cancel_display=1&sdkp=a&display=mobile&format=json")
+                append("&sign=&sdkv=3.5.11.lite&response_type=token")
+                append("&status_os=11&client_id=&switch=1")
+                append("&status_version=30&show_download_ui=true")
+                append("&pf=openmobile_android&scope=all&compat_v=1")
+                append("&status_machine=MEIZU+18+Pro&style=qr&time=")
+                append("&redirect_uri=auth://tauth.qq.com/")
+            }
+
+            val authResp = client.get("https://openmobile.qq.com/oauth2.0/m_authorize?") {
+                headers {
+                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    append("Referer", "https://xui.ptlogin2.qq.com/")
+                }
+            }.bodyAsText()
+
+            // 解析 xlogin URL
+            val srcMatch = Regex("""src = "([^"]+)"""").find(authResp)
+            if (srcMatch == null) {
+                return KuGouResponse(
+                    status = 502,
+                    body = buildJsonObject {
+                        put("status", 0)
+                        put("msg", "m_authorize 响应异常，未找到 xlogin 地址")
+                    },
+                    cookies = emptyMap(),
+                    headers = emptyMap()
+                )
+            }
+
+            val xloginUrl = srcMatch.groupValues[1]
+                .replace(Regex("""\\x([0-9A-Fa-f]{2})""")) {
+                    it.groupValues[1].toInt(16).toChar().toString()
+                }
+
+            // 2. 获取 pt_login_sig cookie
+            val xloginResp = client.get(xloginUrl) {
+                headers {
+                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    append("Referer", "https://xui.ptlogin2.qq.com/")
+                }
+            }
+
+            val ptLoginSig = xloginResp.headers.getAll("Set-Cookie")
+                ?.firstOrNull { it.startsWith("pt_login_sig=") }
+                ?.split(";")?.firstOrNull()?.substringAfter("=") ?: ""
+
+            // 3. 获取二维码图片
+            val t = Random.nextDouble()
+            val qrResp = client.get("https://xui.ptlogin2.qq.com/ssl/ptqrshow?s=8&e=0&appid=716027609&type=0&t=&daid=381&pt_3rd_aid=") {
+                headers {
+                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    append("Referer", xloginUrl)
+                }
+            }.readBytes()
+
+            val qrsig = "" // 需要从响应 cookie 中提取
+            // 获取 qrsig
+            val qrResp2 = client.get("https://xui.ptlogin2.qq.com/ssl/ptqrshow?s=8&e=0&appid=716027609&type=0&t=&daid=381&pt_3rd_aid=") {
+                headers {
+                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    append("Referer", xloginUrl)
+                }
+            }
+
+            val actualQrsig = qrResp2.headers.getAll("Set-Cookie")
+                ?.firstOrNull { it.startsWith("qrsig=") }
+                ?.split(";")?.firstOrNull()?.substringAfter("=") ?: ""
+
+            if (actualQrsig.isEmpty()) {
+                return KuGouResponse(
+                    status = 502,
+                    body = buildJsonObject {
+                        put("status", 0)
+                        put("msg", "未获取到 qrsig")
+                    },
+                    cookies = emptyMap(),
+                    headers = emptyMap()
+                )
+            }
+
+            // 计算 ptqrtoken
+            val ptqrtoken = hash33(actualQrsig)
+
+            return KuGouResponse(
+                status = 200,
+                body = buildJsonObject {
+                    put("qrcode", Crypto.encodeBase64(qrResp))
+                    put("qrsig", actualQrsig)
+                    put("ptqrtoken", ptqrtoken)
+                    put("pt_login_sig", ptLoginSig)
+                    put("xlogin_url", xloginUrl)
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        } catch (e: Exception) {
+            return KuGouResponse(
+                status = 502,
+                body = buildJsonObject {
+                    put("status", 0)
+                    put("msg", e.message ?: "未知错误")
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        } finally {
+            client.close()
+        }
+    }
+
+    /**
+     * QQ 扫码登录 - 检测扫码状态
+     * 对齐 module/login_qq_qr_check.js
+     *
+     * @param qrsig 由 [createQqQrCode] 返回
+     * @param ptqrtoken 由 [createQqQrCode] 返回
+     * @param ptLoginSig 由 [createQqQrCode] 返回
+     * @param xloginUrl 由 [createQqQrCode] 返回
+     * @param ptOpenloginData 由 [createQqQrCode] 返回
+     */
+    suspend fun checkQqQrCode(
+        qrsig: String,
+        ptqrtoken: Int,
+        ptLoginSig: String,
+        xloginUrl: String,
+        ptOpenloginData: String
+    ): KuGouResponse {
+        val isLite = executor.config.isLite
+        val clientId = if (isLite) KuGouConfig.QQ_LITE_APP_ID else KuGouConfig.QQ_APP_ID
+
+        val client = HttpClient()
+        try {
+            val sUrl = "http://connect.qq.com"
+            val u1 = encodeURIComponent(sUrl)
+            val pollUrl = buildString {
+                append("https://xui.ptlogin2.qq.com/ssl/ptqrlogin?")
+                append("u1=&from_ui=1&type=1&ptlang=2052")
+                append("&ptqrtoken=&daid=381&aid=716027609")
+                append("&pt_3rd_aid=&pt_openlogin_data=")
+                append("&device=2&ptopt=1&pt_uistyle=35&jsver=v1.36.0")
+                append("&login_sig=&r=")
+            }
+
+            val pollResp = client.get(pollUrl) {
+                headers {
+                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                    append("Referer", xloginUrl)
+                    append("Cookie", "qrsig=; pt_login_sig=")
+                }
+            }.bodyAsText()
+
+            // 解析 ptuiCB(...) 响应
+            val match = Regex("""ptuiCB\((.+)\)""").find(pollResp)
+            if (match == null) {
+                return KuGouResponse(
+                    status = 502,
+                    body = buildJsonObject {
+                        put("status", 0)
+                        put("msg", "ptqrlogin 响应解析失败")
+                    },
+                    cookies = emptyMap(),
+                    headers = emptyMap()
+                )
+            }
+
+            val parts = Regex("""'([^']*)'""").findAll(match.groupValues[1])
+                .map { it.groupValues[1] }.toList()
+
+            val code = parts.getOrNull(0) ?: ""
+            val url = parts.getOrNull(2) ?: ""
+            val msg = parts.getOrNull(4) ?: ""
+
+            return when (code) {
+                "66" -> {
+                    // 等待扫码
+                    KuGouResponse(
+                        status = 200,
+                        body = buildJsonObject {
+                            put("status", "wait")
+                            put("qrsig", qrsig)
+                            put("ptqrtoken", ptqrtoken)
+                            put("msg", "等待扫码")
+                        },
+                        cookies = emptyMap(),
+                        headers = emptyMap()
+                    )
+                }
+                "65" -> {
+                    // 二维码已失效
+                    KuGouResponse(
+                        status = 200,
+                        body = buildJsonObject {
+                            put("status", "expired")
+                            put("qrsig", qrsig)
+                            put("ptqrtoken", ptqrtoken)
+                            put("msg", "二维码已失效，请重新生成")
+                        },
+                        cookies = emptyMap(),
+                        headers = emptyMap()
+                    )
+                }
+                "0" -> {
+                    // 登录成功，提取 openid 和 access_token
+                    var openid = Regex("""openid=([^&#]+)""").find(url)?.groupValues?.get(1) ?: ""
+                    var accessToken = Regex("""access_token=([^&#]+)""").find(url)?.groupValues?.get(1) ?: ""
+
+                    if (openid.isEmpty() || accessToken.isEmpty()) {
+                        return KuGouResponse(
+                            status = 502,
+                            body = buildJsonObject {
+                                put("status", 0)
+                                put("msg", "登录成功但未获取到 openid/access_token")
+                            },
+                            cookies = emptyMap(),
+                            headers = emptyMap()
+                        )
+                    }
+
+                    // 调用酷狗登录接口
+                    return loginByQq(openid, accessToken)
+                }
+                else -> {
+                    KuGouResponse(
+                        status = 200,
+                        body = buildJsonObject {
+                            put("status", code)
+                            put("qrsig", qrsig)
+                            put("ptqrtoken", ptqrtoken)
+                            put("msg", msg)
+                        },
+                        cookies = emptyMap(),
+                        headers = emptyMap()
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            return KuGouResponse(
+                status = 502,
+                body = buildJsonObject {
+                    put("status", 0)
+                    put("msg", e.message ?: "未知错误")
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        } finally {
+            client.close()
+        }
+    }
+
+    /**
+     * QQ 授权登录
+     * 对齐 module/login_qq.js
+     *
+     * 使用 QQ 的 openid 和 access_token 登录酷狗
+     *
+     * @param openid QQ openid
+     * @param accessToken QQ access_token
+     */
+    suspend fun loginByQq(
+        openid: String,
+        accessToken: String
+    ): KuGouResponse {
+        if (openid.isEmpty() || accessToken.isEmpty()) {
+            return KuGouResponse(
+                status = 502,
+                body = buildJsonObject {
+                    put("status", 0)
+                    put("msg", "缺少 openid 或 access_token")
+                },
+                cookies = emptyMap(),
+                headers = emptyMap()
+            )
+        }
+
+        val isLite = executor.config.isLite
+        val clientId = if (isLite) KuGouConfig.QQ_LITE_APP_ID else KuGouConfig.QQ_APP_ID
+
+        // AES 加密 access_token
+        val (aesEncrypted, aesKey) = Crypto.aesEncryptAuto(buildJsonObject {
+            put("access_token", accessToken)
+        }.toString())
+
+        val dateNow = currentTimeMillis()
+        val guid = executor.cookieJar.getGuid()
+        val mac = executor.cookieJar.getMac()
+        val dev = executor.cookieJar.getDev()
+
+        // RSA 加密 AES 密钥
+        val pk = Crypto.rsaEncrypt(
+            buildJsonObject {
+                put("clienttime_ms", dateNow)
+                put("key", aesKey)
+            }.toString().encodeToByteArray(),
+            Crypto.activePublicRasKey(executor.config)
+        ).uppercase()
+
+        // t2 加密
+        val t2Key = "fd14b35e3f81af3817a20ae7adae7020"
+        val t2Iv = "17a20ae7adae7020"
+        val t2Plain = "|0f607264fc6318a92b9e13c65db7cd3c|||"
+        val t2 = Crypto.aesEncryptBase64(t2Plain, t2Key, t2Iv)
+
+        // t1 加密
+        val t1Key = "5e4ef500e9597fe004bd09a46d8add98"
+        val t1Iv = "04bd09a46d8add98"
+        val t1Plain = "|"
+        val t1 = Crypto.aesEncryptBase64(t1Plain, t1Key, t1Iv)
+
+        val response = executor.execute(
+            KuGouRequest(
+                url = "/v6/login_by_openplat",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("dev", dev)
+                    put("force_login", 1)
+                    put("partnerid", 1)
+                    put("clienttime_ms", dateNow)
+                    put("t1", if (isLite) t1 else "0")
+                    put("t2", if (isLite) t2 else "0")
+                    put("t3", "MCwwLDAsMCwwLDAsMCwwLDA=")
+                    put("third_appid", clientId)
+                    put("openid", openid)
+                    put("params", aesEncrypted)
+                    put("pk", pk)
+                },
+                encryptType = EncryptType.ANDROID,
+                headers = mapOf("x-router" to "login.user.kugou.com")
+            )
+        )
+
+        // 解密响应中的 token
+        if (response.body["status"]?.jsonPrimitive?.intOrNull == 1) {
+            try {
+                val secuParams = response.body["data"]?.jsonObject?.get("secu_params")?.jsonPrimitive?.content
+                if (!secuParams.isNullOrEmpty()) {
+                    val decrypted = Crypto.aesDecryptBase64(secuParams, aesKey.substring(0, 32), aesKey.substring(16, 32))
+                    val tokenData = Json.parseToJsonElement(decrypted).jsonObject
+                    val token = tokenData["token"]?.jsonPrimitive?.content ?: ""
+
+                    if (token.isNotEmpty()) {
+                        // 自动保存到 CookieJar
+                        executor.cookieJar.setToken(token)
+                        tokenData["userid"]?.jsonPrimitive?.longOrNull?.let { executor.cookieJar.setUserid(it) }
+                        tokenData["vip_type"]?.jsonPrimitive?.intOrNull?.let { executor.cookieJar["vip_type"] = it.toString() }
+                        tokenData["vip_token"]?.jsonPrimitive?.contentOrNull?.let { executor.cookieJar.setVipToken(it) }
+                    }
+
+                    // 合并解密数据到响应
+                    val mergedBody = buildJsonObject {
+                        response.body.forEach { (k, v) ->
+                            if (k == "data") {
+                                put(k, buildJsonObject {
+                                    v.jsonObject.forEach { (dk, dv) -> put(dk, dv) }
+                                    tokenData.forEach { (tk, tv) -> put(tk, tv) }
+                                })
+                            } else {
+                                put(k, v)
+                            }
+                        }
+                    }
+                    return response.copy(body = mergedBody)
+                }
+            } catch (_: Exception) {}
+        }
+
+        return response
+    }
+
+    /**
+     * 计算 QQ qrsig 哈希值
+     */
+    private fun hash33(str: String): Int {
+        var e = 0
+        for (i in str.indices) {
+            e += (e shl 5) + str[i].code
+        }
+        return 2147483647.toInt() and e
+    }
+
+    fun encodeURIComponent(value: String): String {
+        val bytes = value.encodeToByteArray()
+        val result = StringBuilder(bytes.size)
+
+        val hex = "0123456789ABCDEF"
+
+        for (byte in bytes) {
+            val b = byte.toInt() and 0xFF
+
+            val isUnescaped =
+                b in 'A'.code..'Z'.code ||
+                        b in 'a'.code..'z'.code ||
+                        b in '0'.code..'9'.code ||
+                        b == '-'.code ||
+                        b == '_'.code ||
+                        b == '.'.code ||
+                        b == '!'.code ||
+                        b == '~'.code ||
+                        b == '*'.code ||
+                        b == '\''.code ||
+                        b == '('.code ||
+                        b == ')'.code
+
+            if (isUnescaped) {
+                result.append(b.toChar())
+            } else {
+                result.append('%')
+                result.append(hex[b ushr 4])
+                result.append(hex[b and 0x0F])
+            }
+        }
+
+        return result.toString()
     }
 }

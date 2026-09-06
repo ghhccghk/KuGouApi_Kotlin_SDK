@@ -308,4 +308,584 @@ class ListenTogetherApi(private val executor: RequestExecutor) {
             )
         )
     }
+
+    /**
+     * 发送聊天消息
+     * 对齐 module/listen_together_chat.js (send)
+     *
+     * @param roomId 房间ID
+     * @param message 消息内容
+     * @param nickname 昵称
+     * @param biz 业务类型
+     */
+    suspend fun sendChatMessage(
+        roomId: String,
+        message: String,
+        nickname: String = "",
+        biz: String = SELF_STUDY_BIZ
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/chat",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("groupid", roomId)
+                    putJsonObject("message") {
+                        put("msgtype", 801)
+                        put("nickname", nickname)
+                        put("img", "")
+                        put("alert", message)
+                    }
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取聊天历史
+     * 对齐 module/listen_together_chat.js (history)
+     *
+     * @param roomId 房间ID
+     * @param maxId 最大消息ID
+     * @param pageSize 每页数量
+     * @param biz 业务类型
+     */
+    suspend fun getChatHistory(
+        roomId: String,
+        maxId: String = "0",
+        pageSize: Int = 20,
+        biz: String = SELF_STUDY_BIZ
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/msg_history",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("groupid", roomId)
+                    put("maxid", maxId)
+                    put("pagesize", pageSize.toString())
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 搜索频道
+     * 对齐 module/listen_together_discovery.js (channel_search)
+     *
+     * @param keyword 搜索关键词
+     * @param page 页码
+     * @param position 位置
+     */
+    suspend fun searchChannel(
+        keyword: String,
+        page: Int = 1,
+        position: Int = 1
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = YOUTH_BASE,
+                url = "/v1/search/channel",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "keyword" to keyword,
+                    "page" to page,
+                    "position" to position
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取一起听广场列表
+     * 对齐 module/listen_together_discovery.js (kugroup_square)
+     *
+     * @param page 页码
+     * @param pageSize 每页数量
+     * @param orderType 排序类型
+     */
+    suspend fun getKugroupSquare(
+        page: Int = 1,
+        pageSize: Int = 20,
+        orderType: Int = 1
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = YOUTH_BASE,
+                url = "/v1/kugroup/square",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "page" to page,
+                    "pagesize" to pageSize,
+                    "order_type" to orderType
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取众乐房主播列表
+     * 对齐 module/listen_together_discovery.js (kugroup_streamers)
+     *
+     * @param longitude 经度
+     * @param latitude 纬度
+     */
+    suspend fun getKugroupStreamers(
+        longitude: Double = 0.0,
+        latitude: Double = 0.0
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = YOUTH_BASE,
+                url = "/v1/kugroup/get_streamer_list",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "longitude" to longitude,
+                    "latitude" to latitude
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取最近访问的房间
+     * 对齐 module/listen_together_discovery.js (recent_rooms)
+     */
+    suspend fun getRecentRooms(): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = YOUTH_BASE,
+                url = "/v3/user/recent_room_dynamic",
+                method = HttpMethod.GET,
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 创建音乐房间
+     * 对齐 module/listen_together_room.js (create)
+     *
+     * @param roomName 房间名称
+     * @param biz 业务类型
+     * @param backgroundUrl 背景图片URL
+     * @param globalCollectionId 频道全局收藏ID
+     * @param capacity 容量
+     * @param roomPrivacy 房间隐私：1=公开，3=私密
+     */
+    suspend fun createMusicRoom(
+        roomName: String = "",
+        biz: String = MUSIC_ROOM_BIZ,
+        backgroundUrl: String = DEFAULT_MUSIC_ROOM_BG,
+        globalCollectionId: String = "",
+        capacity: Int = 5,
+        roomPrivacy: Int = 1
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/create",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("introduction", roomName)
+                    put("capacity", capacity)
+                    putJsonObject("pass_through_data") {
+                        put("room_privacy", roomPrivacy)
+                        put("cp_notice", 1)
+                        put("room_bg_content", buildJsonObject {
+                            put("bg_img", backgroundUrl)
+                            put("room_bg_type", "2")
+                        }.toString())
+                        if (roomPrivacy == 1 && globalCollectionId.isNotEmpty()) {
+                            put("global_collection_id", globalCollectionId)
+                        }
+                    }
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 加入音乐房间
+     * 对齐 module/listen_together_room.js (join)
+     *
+     * @param roomId 房间ID
+     * @param biz 业务类型
+     */
+    suspend fun joinMusicRoom(
+        roomId: String,
+        biz: String = MUSIC_ROOM_BIZ
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/join",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("groupid", roomId)
+                    putJsonObject("pass_through_data") {
+                        put("cp_notice", 1)
+                    }
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取音乐房间状态
+     * 对齐 module/listen_together_room.js (state)
+     *
+     * @param roomId 房间ID
+     * @param biz 业务类型
+     */
+    suspend fun getMusicRoomState(
+        roomId: String,
+        biz: String = MUSIC_ROOM_BIZ
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/info",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("groupid", roomId)
+                },
+                params = mapOf("biz" to biz),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 发送心跳
+     * 对齐 module/listen_together_room.js (heartbeat)
+     *
+     * @param roomId 房间ID
+     * @param biz 业务类型
+     */
+    suspend fun sendHeartbeat(
+        roomId: String,
+        biz: String = SELF_STUDY_BIZ
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/heartbeat",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("groupid", roomId)
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 离开音乐房间
+     * 对齐 module/listen_together_room.js (leave)
+     *
+     * @param roomId 房间ID
+     * @param biz 业务类型
+     */
+    suspend fun leaveMusicRoom(
+        roomId: String,
+        biz: String = SELF_STUDY_BIZ
+    ): KuGouResponse {
+        val userid = executor.cookieJar.getUserid().toLongOrNull() ?: 0L
+        val token = executor.cookieJar.getToken()
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/rmservice/v1/group/leave",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("userid", userid)
+                    put("token", token)
+                    put("biz", biz)
+                    put("groupid", roomId)
+                },
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取音乐房间播放列表
+     * 对齐 module/listen_together_music.js (playlist)
+     *
+     * @param roomId 房间ID
+     * @param pageSize 每页数量
+     */
+    suspend fun getMusicRoomPlaylist(
+        roomId: String,
+        pageSize: Int = 50
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/music_fetch_list",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("pagesize", pageSize)
+                },
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取音乐房间详情
+     * 对齐 module/listen_together_music.js (detail)
+     *
+     * @param roomId 房间ID
+     */
+    suspend fun getMusicRoomDetail(roomId: String): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/get_musicroom_info",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "roomid" to roomId,
+                    "biz" to MUSIC_ROOM_BIZ
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取音乐房间成员
+     * 对齐 module/listen_together_music.js (members)
+     *
+     * @param roomId 房间ID
+     * @param page 页码
+     * @param pageSize 每页数量
+     */
+    suspend fun getMusicRoomMembers(
+        roomId: String,
+        page: Int = 1,
+        pageSize: Int = 100
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/get_musicroom_member",
+                method = HttpMethod.GET,
+                params = mapOf(
+                    "roomid" to roomId,
+                    "page" to page,
+                    "pagesize" to pageSize,
+                    "apiver" to "3"
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 初始化音乐房间
+     * 对齐 module/listen_together_music.js (initialize)
+     *
+     * @param roomId 房间ID
+     */
+    suspend fun initializeMusicRoom(roomId: String): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/init_musicroom",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("sendall", 1)
+                    put("audios", buildJsonArray { })
+                },
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 同步音乐房间播放器
+     * 对齐 module/listen_together_music.js (sync_player)
+     *
+     * @param roomId 房间ID
+     * @param frm 来源
+     */
+    suspend fun syncMusicPlayer(
+        roomId: String,
+        frm: Int = 2
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/music_sync_player",
+                method = HttpMethod.POST,
+                data = buildJsonObject { },
+                params = mapOf(
+                    "roomid" to roomId,
+                    "frm" to frm
+                ),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 切换歌曲
+     * 对齐 module/listen_together_music.js (switch_song)
+     *
+     * @param roomId 房间ID
+     * @param hash 歌曲哈希
+     * @param mixsongid 歌曲MixID
+     * @param actType 操作类型
+     */
+    suspend fun switchSong(
+        roomId: String,
+        hash: String = "",
+        mixsongid: String = "",
+        actType: Int = 1
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/music_sw",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("act_type", actType)
+                    putJsonObject("audio") {
+                        put("hash", hash)
+                        put("mixsongid", mixsongid)
+                    }
+                },
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 播放器操作
+     * 对齐 module/listen_together_music.js (player_operation)
+     *
+     * @param roomId 房间ID
+     * @param action 操作类型：1=播放模式，2=进度，3=暂停/播放
+     * @param playMode 播放模式（action=1时）
+     * @param progress 进度（action=2时）
+     * @param pause 是否暂停（action=3时）
+     */
+    suspend fun playerOperation(
+        roomId: String,
+        action: Int = 3,
+        playMode: Int = 1,
+        progress: Int = 0,
+        pause: Boolean = true
+    ): KuGouResponse {
+        val data = buildJsonObject {
+            put("action", action)
+            when (action) {
+                1 -> put("play_mode", playMode)
+                2 -> put("progress", progress.coerceAtLeast(0))
+                3 -> put("pause", if (pause) "1" else "2")
+            }
+        }
+
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/music_player_opr",
+                method = HttpMethod.POST,
+                data = data,
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 点歌
+     * 对齐 module/listen_together_music.js (order_song)
+     *
+     * @param roomId 房间ID
+     * @param hash 歌曲哈希
+     * @param mixsongid 歌曲MixID
+     */
+    suspend fun orderSong(
+        roomId: String,
+        hash: String = "",
+        mixsongid: String = ""
+    ): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/order_song",
+                method = HttpMethod.POST,
+                data = buildJsonObject {
+                    put("mixsongid", mixsongid)
+                    put("hash", hash)
+                },
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
+
+    /**
+     * 获取点歌列表
+     * 对齐 module/listen_together_music.js (song_order_list)
+     *
+     * @param roomId 房间ID
+     */
+    suspend fun getSongOrderList(roomId: String): KuGouResponse {
+        return executor.execute(
+            KuGouRequest(
+                baseUrl = GATEWAY_BASE,
+                url = "/youth/v1/genting/song_order_list",
+                method = HttpMethod.GET,
+                params = mapOf("roomid" to roomId),
+                encryptType = EncryptType.ANDROID
+            )
+        )
+    }
 }

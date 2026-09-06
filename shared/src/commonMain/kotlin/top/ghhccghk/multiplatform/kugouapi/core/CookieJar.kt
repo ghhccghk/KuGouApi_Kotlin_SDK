@@ -38,6 +38,7 @@ class CookieJar(private val config: KuGouConfig) {
     fun getVipToken(): String = _cookies["vip_token"] ?: ""
     fun getWebGLHash(): String = _cookies["KUGOU_API_WEBGL"]?: ""
     fun getMac(): String = _cookies["KUGOU_API_MAC"] ?: ""
+    fun getAuth(): String = _cookies["auth"]?:""
 
     fun setToken(t: String) { _cookies["token"] = t }
     fun setUserid(id: Long) { _cookies["userid"] = id.toString() }
@@ -48,6 +49,7 @@ class CookieJar(private val config: KuGouConfig) {
     fun setVipToken(v: String) { _cookies["vip_token"] = v }
     fun setMac(m: String) { _cookies["KUGOU_API_MAC"] = m }
     fun setWebGLHash(h: String) { _cookies["KUGOU_API_WEBGL"] = h }
+    fun setAuth(a: String) { _cookies["auth"] = a }
 
 
     fun isLoggedIn(): Boolean = getToken().isNotEmpty() && getUserid() != "0"

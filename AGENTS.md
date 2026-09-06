@@ -1,4 +1,4 @@
-# AGENTS.md
+﻿# AGENTS.md
 
 ## 项目概述
 
@@ -102,6 +102,8 @@ iosApp/                    # iOS 示例应用 (Xcode)
 ### 5. 社交与互动
 - **CommentApi** (`CommentApi.kt`) - 评论列表、热门评论、评论点赞
 - **SheetApi** (`SheetApi.kt`) - 歌单创建、编辑、分享
+- **BlacklistApi** (BlacklistApi.kt) - 黑名单管理、歌曲/歌手屏蔽
+- **UserCloudApi** (UserCloudApi.kt) - 用户云盘、文件上传、匹配
 
 ### 6. 场景与特色
 - **SceneMusicApi** (`SceneMusicApi.kt`) - 场景音乐（运动、学习、睡眠等）
@@ -109,6 +111,8 @@ iosApp/                    # iOS 示例应用 (Xcode)
 - **AudioMatchApi** (`AudioMatchApi.kt`) - 听歌识曲、音频匹配
 - **YouthApi** (`YouthApi.kt`) - 青少年模式、适龄内容
 - **YuekuApi** (`YuekuApi.kt`) - 乐库、音乐分类浏览
+- **ListenTogetherApi** (ListenTogetherApi.kt) - 一起听、音乐房间、聊天、点歌
+- **EffectsApi** (EffectsApi.kt) - 音效管理、耳机音效、社区音效
 
 ### 7. 系统与杂项
 - **MiscApi** (`MiscApi.kt`) - 系统配置、版本检查、客户端设置
