@@ -96,25 +96,7 @@ class RecommendApi(private val executor: RequestExecutor) {
             )
         )
     }
-
-    /**
-     * 每日推荐歌曲 (Alternative)
-     */
-    suspend fun getRecommendSongs(platform: String = "android"): KuGouResponse {
-        return executor.execute(
-            KuGouRequest(
-                url = "/everyday_song_recommend",
-                method = HttpMethod.POST,
-                data = buildJsonObject {
-                    put("platform", platform)
-                    put("userid", executor.cookieJar.getUserid())
-                },
-                encryptType = EncryptType.ANDROID,
-                headers = mapOf("x-router" to "everydayrec.service.kugou.com")
-            )
-        )
-    }
-
+    
     /**
      * 私人 FM 推荐
      */
@@ -292,3 +274,6 @@ class RecommendApi(private val executor: RequestExecutor) {
         )
     }
 }
+
+
+

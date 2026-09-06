@@ -21,6 +21,7 @@ class KuGouClient(
     private val executor =
         RequestExecutor(config, cookieJar)
 
+    // 原有API模块
     val auth = AuthApi(executor)
     val search = SearchApi(executor)
     val album = AlbumApi(executor)
@@ -42,4 +43,12 @@ class KuGouClient(
     val yueku = YuekuApi(executor)
     val youth = YouthApi(executor)
     val top = TopApi(executor)
+    val effects = EffectsApi(executor)
+    val listenTogether = ListenTogetherApi(executor)
+    val userCloud = UserCloudApi(executor)
+    val blacklist = BlacklistApi(executor)
+    val songAuth = SongAuthApi(executor)
+    val playlistEffect = PlaylistEffectApi(executor)
+    val userPurchased = UserPurchasedApi(executor)
+    val userUpdate = UserUpdateApi(executor)
 }
