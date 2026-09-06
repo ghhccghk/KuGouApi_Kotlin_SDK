@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 长音频 (有声书等) 相关 API
+ * 长音频（有声书）相关 API。提供有声书、播客、长音频内容的搜索、分类、推荐等功能。对齐 module/longaudio_* 系列。
  */
 class LongAudioApi(private val executor: RequestExecutor) {
 

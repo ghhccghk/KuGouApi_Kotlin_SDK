@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 场景音乐相关 API
+ * 场景音乐相关 API。提供场景音乐（运动、学习、睡眠等）的列表、详情、模块等功能。对齐 module/scene_* 系列。
  */
 class SceneMusicApi(private val executor: RequestExecutor) {
 

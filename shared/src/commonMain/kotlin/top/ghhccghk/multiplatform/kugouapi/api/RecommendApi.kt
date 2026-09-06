@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 推荐相关 API
+ * 推荐相关 API。提供个性化推荐、每日推荐、新歌推荐、私人 FM、AI 推荐等功能。对齐 module/everyday_*、recommend_*、personal_fm 等。
  */
 class RecommendApi(private val executor: RequestExecutor) {
 

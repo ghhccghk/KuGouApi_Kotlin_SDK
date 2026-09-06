@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 排行榜相关 API
+ * 排行榜相关 API。提供排行榜、热歌榜、新歌榜、排行榜详情等功能。对齐 module/rank_* 系列。
  */
 class RankApi(private val executor: RequestExecutor) {
 

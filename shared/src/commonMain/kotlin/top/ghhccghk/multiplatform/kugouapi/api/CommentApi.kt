@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 评论相关 API
+ * 评论相关 API。提供歌曲评论、专辑评论、歌单评论、楼层评论等功能。对齐 module/comment_* 系列。
  */
 class CommentApi(private val executor: RequestExecutor) {
 

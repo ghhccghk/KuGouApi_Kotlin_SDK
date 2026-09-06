@@ -6,7 +6,7 @@ import kotlinx.serialization.json.*
 import kotlinx.serialization.json.put
 
 /**
- * 歌单相关 API
+ * 歌单相关 API。提供歌单详情、歌单歌曲、歌单分类、创建/删除歌单、导入歌单等功能。对齐 module/playlist_* 系列。
  */
 class PlaylistApi(private val executor: RequestExecutor) {
 

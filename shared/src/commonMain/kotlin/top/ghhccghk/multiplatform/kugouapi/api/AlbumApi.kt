@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.EncryptType
 import kotlinx.serialization.json.*
 
 /**
- * 专辑相关 API
+ * 专辑相关 API。提供专辑详情、专辑歌曲列表、唱片店分类等功能。对齐 module/album_* 系列。
  */
 class AlbumApi(private val executor: RequestExecutor) {
 

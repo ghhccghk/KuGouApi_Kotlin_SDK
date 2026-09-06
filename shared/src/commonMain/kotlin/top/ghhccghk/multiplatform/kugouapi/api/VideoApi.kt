@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 视频/MV 相关 API
+ * 视频相关 API。提供 MV 播放、视频详情、视频搜索、视频 URL 获取等功能。对齐 module/video_* 和 kmr_audio_mv 等。
  */
 class VideoApi(private val executor: RequestExecutor) {
 

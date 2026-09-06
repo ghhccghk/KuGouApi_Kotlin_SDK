@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 图片相关 API
+ * 图片相关 API。提供歌手图片、专辑图片、封面图片获取等功能。对齐 module/images_* 系列。
  */
 class ImageApi(private val executor: RequestExecutor) {
 

@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 电台/FM 相关 API
+ * 电台/FM 相关 API。提供电台、电台节目、FM 分类、FM 推荐等功能。对齐 module/fm_* 和 pc_diantai 等。
  */
 class RadioApi(private val executor: RequestExecutor) {
 

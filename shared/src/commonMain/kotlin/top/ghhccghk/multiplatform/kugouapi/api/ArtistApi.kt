@@ -5,7 +5,7 @@ import top.ghhccghk.multiplatform.kugouapi.model.*
 import kotlinx.serialization.json.*
 
 /**
- * 歌手相关 API
+ * 歌手相关 API。提供歌手详情、歌手歌曲、歌手专辑、歌手 MV、关注/取关等功能。对齐 module/artist_* 和 singer_* 系列。
  */
 class ArtistApi(private val executor: RequestExecutor) {
 
