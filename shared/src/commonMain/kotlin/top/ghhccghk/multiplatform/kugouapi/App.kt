@@ -398,7 +398,7 @@ fun App(
                     }
                     ActionRow {
                         Input("rec_songs_id", get("rec_songs_id"), { inputs["rec_songs_id"] = it }, "Hash")
-                        Btn("推荐歌曲") { addLog("Recommend:getSongs", client.recommend.getRecommendSongs(get("rec_songs_id")).body) }
+                        Btn("推荐歌曲") { addLog("Recommend:getSongs", client.recommend.getDailyRecommend(get("rec_songs_id")).body) }
                     }
 
                     Divider()

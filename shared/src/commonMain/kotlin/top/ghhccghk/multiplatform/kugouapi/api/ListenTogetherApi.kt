@@ -16,6 +16,7 @@ class ListenTogetherApi(private val executor: RequestExecutor) {
         private const val GATEWAY_BASE = "https://gateway.kugou.com"
         private const val SELF_STUDY_BIZ = "1000"
         private const val MUSIC_ROOM_BIZ = "1009"
+        private const val DEFAULT_MUSIC_ROOM_BG = "https://youthimgbssdl.kugou.com/6e9cdcef8d163d06225d8cbeaa2f1ece.JPEG"
     }
 
     // ... 之前的方法保持不变 ...

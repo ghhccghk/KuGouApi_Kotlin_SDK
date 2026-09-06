@@ -7,6 +7,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.client.statement.readBytes
+import io.ktor.client.statement.readRawBytes
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import kotlinx.serialization.json.buildJsonObject
@@ -507,7 +508,7 @@ class UserCloudApi(private val executor: RequestExecutor) {
                 setBody(Crypto.decodeBase64(aesEncrypted))
                 contentType(ContentType.Application.OctetStream)
             }
-            val addRespBytes = addResp.readBytes()
+            val addRespBytes = addResp.readRawBytes()
 
             httpClient.close()
 

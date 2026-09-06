@@ -19,6 +19,7 @@ import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
+import io.ktor.client.statement.readRawBytes
 import kotlinx.serialization.json.*
 import kotlinx.serialization.json.put
 import top.ghhccghk.multiplatform.kugouapi.core.activePublicRasKey
@@ -1157,12 +1158,16 @@ class AuthApi(private val executor: RequestExecutor) {
 
             // 3. 获取二维码图片
             val t = Random.nextDouble()
-            val qrResp = client.get("https://xui.ptlogin2.qq.com/ssl/ptqrshow?s=8&e=0&appid=716027609&type=0&t=&daid=381&pt_3rd_aid=") {
-                headers {
-                    append("User-Agent", "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
-                    append("Referer", xloginUrl)
-                }
-            }.readBytes()
+            val qrResp =
+                client.get("https://xui.ptlogin2.qq.com/ssl/ptqrshow?s=8&e=0&appid=716027609&type=0&t=&daid=381&pt_3rd_aid=") {
+                    headers {
+                        append(
+                            "User-Agent",
+                            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+                        )
+                        append("Referer", xloginUrl)
+                    }
+                }.readRawBytes()
 
             val qrsig = "" // 需要从响应 cookie 中提取
             // 获取 qrsig
