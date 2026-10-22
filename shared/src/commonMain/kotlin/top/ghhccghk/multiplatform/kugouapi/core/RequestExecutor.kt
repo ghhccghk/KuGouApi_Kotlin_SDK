@@ -1,4 +1,4 @@
-package top.ghhccghk.multiplatform.kugouapi.core
+﻿package top.ghhccghk.multiplatform.kugouapi.core
 
 import top.ghhccghk.multiplatform.kugouapi.KuGouConfig
 import io.ktor.client.*
@@ -264,10 +264,12 @@ class RequestExecutor internal constructor(
         // ── 6. 构建 Header ──
 
         val headers = linkedMapOf<String, String>()
-        headers["User-Agent"] = config.userAgent
-        headers["dfid"] = dfid
-        headers["clienttime"] = clienttime.toString()
-        headers["mid"] = mid
+        if (!request.clearDefaultHeaders) {
+            headers["User-Agent"] = config.userAgent
+            headers["dfid"] = dfid
+            headers["clienttime"] = clienttime.toString()
+            headers["mid"] = mid
+        }
         // 用户提供的覆盖/补充
         headers.putAll(request.headers)
 

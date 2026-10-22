@@ -1,4 +1,4 @@
-package top.ghhccghk.multiplatform.kugouapi.core
+﻿package top.ghhccghk.multiplatform.kugouapi.core
 
 import top.ghhccghk.multiplatform.kugouapi.model.EncryptType
 import io.ktor.http.ContentType
@@ -12,6 +12,7 @@ data class KuGouRequest(
     val baseUrl: String? = null,
     val encryptType: EncryptType = EncryptType.ANDROID,
     val clearDefaultParams: Boolean = false,
+    val clearDefaultHeaders: Boolean = false,
     val encryptKey: Boolean = false,
     val notSignature: Boolean = false,
     val responseType: ResponseType = ResponseType.JSON,

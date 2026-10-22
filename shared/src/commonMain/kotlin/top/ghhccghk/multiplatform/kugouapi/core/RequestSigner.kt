@@ -1,4 +1,4 @@
-package top.ghhccghk.multiplatform.kugouapi.core
+﻿package top.ghhccghk.multiplatform.kugouapi.core
 
 import top.ghhccghk.multiplatform.kugouapi.KuGouConfig
 import top.ghhccghk.multiplatform.kugouapi.model.EncryptType
@@ -49,6 +49,19 @@ class RequestSigner(private val config: KuGouConfig) {
             }
         }
         return Crypto.md5("$salt$paramsString$salt")
+    }
+
+    /**
+     * Web 签名（含请求体）
+     * 对齐 Node.js helper.js 的 signatureWebParams(params, data)：
+     * H5 的 kGRequest 对带请求体的 POST 会把 JSON 请求体拼进签名。
+     */
+    fun signatureWebParamsWithBody(params: Map<String, Any?>, data: String): String {
+        val salt = config.webSignatureSalt
+        val paramsString = params.keys.sorted().joinToString("") { key ->
+            "$key=${normalize(params[key])}"
+        }
+        return Crypto.md5("$salt$paramsString$data$salt")
     }
 
     fun signatureRegisterParams(params: Map<String, Any?>): String {
